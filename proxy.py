@@ -10,6 +10,10 @@ import sys
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from hardware_detector import HardwareDetector
 from engine import RecommendationEngine
 from models import HardwareProfile
@@ -25,6 +29,8 @@ from datetime import datetime
 
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v1.5")
 RERANK_MODEL = os.getenv("RERANK_MODEL", "bge-reranker-v2-m3")
+MAIN_MODEL = os.getenv("MAIN_MODEL", "qwen3.5-4b")
+REASONING_MODEL = os.getenv("REASONING_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "3"))
 # from exporters import export_preset_json  # You'll need to create this
 
@@ -125,10 +131,15 @@ class OptimizingProxy:
         # 5. Routing mode — Fast / Think / Architect
         extra = body.get("extra_body", {})
         mode = extra.get("mode", None)
-        if mode == "think":
+        if mode == "think" or domain == "reasoning":
             body["temperature"] = min(body.get("temperature", 0.7), 0.4)
+            if body.get("model") == "default" or body.get("model") == MAIN_MODEL:
+                body["model"] = REASONING_MODEL
         elif mode == "architect":
             body["temperature"] = min(body.get("temperature", 0.7), 0.3)
+            
+        if body.get("model") == "default":
+            body["model"] = MAIN_MODEL
 
         # 6. Context enrichment — rerank + embed provided chunks or URL fetches
         context_docs = extra.get("context_docs", [])

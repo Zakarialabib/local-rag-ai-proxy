@@ -6,6 +6,7 @@ fastapi>=0.100.0
 uvicorn>=0.22.0
 httpx>=0.24.0
 numba>=0.59.0
+python-dotenv>=1.0.0
 
 # Replace: nvidia-ml-py>=12.535.133
 # With:

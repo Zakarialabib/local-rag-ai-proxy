@@ -7,6 +7,8 @@ copyable VRAM reports, and full Context Engineering previews.
 import os
 import json
 import time
+import subprocess
+import threading
 from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox
@@ -110,6 +112,15 @@ class LMStudioConfigGUI(ctk.CTk):
         self.recommendations = []
         self.selected_rec = None
         self._active_backend_key = "cuda"
+        
+        # Server State
+        self.proxy_process = None
+        self.model_roles = {
+            "main": "qwen3.5-4b",
+            "reasoning": "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2",
+            "embed": "text-embedding-nomic-embed-text-v1.5",
+            "rerank": "text-embedding-bge-reranker-v2-m3"
+        }
 
         # ── Sidebar ───────────────────────────────────────────────────────────
         self.sidebar = ctk.CTkFrame(self, width=280, corner_radius=0)
@@ -202,7 +213,8 @@ class LMStudioConfigGUI(ctk.CTk):
         # Tabs
         self.tabview = ctk.CTkTabview(self.main_frame, height=300)
         self.tabview.grid(row=2, column=0, sticky="ew", pady=15)
-        self.tabview.add("📊 VRAM Breakdown")
+        self.tabview.add("� Server & Models")
+        self.tabview.add("� VRAM Breakdown")
         self.tabview.add("🧠 Context Engineering")
         self.tabview.add("📋 Instructions & Guide")
 
@@ -227,6 +239,7 @@ class LMStudioConfigGUI(ctk.CTk):
 
         # Populate static tab
         self._populate_instruction_tab()
+        self._populate_server_tab()
 
         # Deferred init
         self.after(300, self._initial_load)
@@ -241,6 +254,105 @@ class LMStudioConfigGUI(ctk.CTk):
         txt.pack(fill="both", expand=True, padx=10, pady=10)
         txt.insert("1.0", INSTRUCTION_INFO_TEXT)
         txt.configure(state="disabled")
+
+    def _populate_server_tab(self):
+        tab = self.tabview.tab("🚀 Server & Models")
+        
+        # Server Control Frame
+        ctrl_frame = ctk.CTkFrame(tab, fg_color="transparent")
+        ctrl_frame.pack(fill="x", padx=10, pady=(10, 5))
+        
+        self.btn_start_server = ctk.CTkButton(ctrl_frame, text="▶ Start Proxy Server", 
+                                             fg_color="#2ea44f", hover_color="#3fb950",
+                                             command=self._toggle_server)
+        self.btn_start_server.pack(side="left", padx=5)
+        
+        self.server_status_lbl = ctk.CTkLabel(ctrl_frame, text="Status: Stopped", text_color="#8b949e")
+        self.server_status_lbl.pack(side="left", padx=15)
+        
+        # Model Mapping Frame
+        map_frame = ctk.CTkFrame(tab)
+        map_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        ctk.CTkLabel(map_frame, text="Model Routing Map (Saved to .env)", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, columnspan=2, pady=10)
+        
+        self.role_vars = {}
+        roles = [
+            ("Main LLM", "main", self.model_roles["main"]),
+            ("Reasoning", "reasoning", self.model_roles["reasoning"]),
+            ("Embedder", "embed", self.model_roles["embed"]),
+            ("Reranker", "rerank", self.model_roles["rerank"]),
+        ]
+        
+        for i, (label_text, key, default_val) in enumerate(roles):
+            ctk.CTkLabel(map_frame, text=label_text).grid(row=i+1, column=0, sticky="w", padx=20, pady=5)
+            var = tk.StringVar(value=default_val)
+            self.role_vars[key] = var
+            # We'll update the values of these menus after scanning models
+            menu = ctk.CTkOptionMenu(map_frame, variable=var, values=[default_val], width=300)
+            menu.grid(row=i+1, column=1, sticky="ew", padx=20, pady=5)
+            
+        save_btn = ctk.CTkButton(map_frame, text="💾 Save Configuration", command=self._save_model_config)
+        save_btn.grid(row=len(roles)+1, column=0, columnspan=2, pady=15)
+
+    def _save_model_config(self):
+        env_path = Path(".env")
+        lines = []
+        if env_path.exists():
+            with open(env_path, "r") as f:
+                lines = f.readlines()
+                
+        # Filter out old keys
+        keys_to_update = ["MAIN_MODEL", "REASONING_MODEL", "EMBED_MODEL", "RERANK_MODEL"]
+        lines = [l for l in lines if not any(l.startswith(k) for k in keys_to_update)]
+        
+        # Add new keys
+        lines.append(f"MAIN_MODEL={self.role_vars['main'].get()}\n")
+        lines.append(f"REASONING_MODEL={self.role_vars['reasoning'].get()}\n")
+        lines.append(f"EMBED_MODEL={self.role_vars['embed'].get()}\n")
+        lines.append(f"RERANK_MODEL={self.role_vars['rerank'].get()}\n")
+        
+        with open(env_path, "w") as f:
+            f.writelines(lines)
+            
+        messagebox.showinfo("Saved", "Configuration saved to .env\nRestart the server to apply changes.")
+
+    def _toggle_server(self):
+        if self.proxy_process is None:
+            # Start
+            try:
+                env = os.environ.copy()
+                env["MAIN_MODEL"] = self.role_vars["main"].get()
+                env["REASONING_MODEL"] = self.role_vars["reasoning"].get()
+                env["EMBED_MODEL"] = self.role_vars["embed"].get()
+                env["RERANK_MODEL"] = self.role_vars["rerank"].get()
+                
+                # Use subprocess to start proxy.py
+                self.proxy_process = subprocess.Popen(
+                    ["python", "proxy.py"],
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                self.btn_start_server.configure(text="⏹ Stop Proxy Server", fg_color="#d73a49", hover_color="#cb2431")
+                self.server_status_lbl.configure(text="Status: Running (Port 8080)", text_color="#2ea44f")
+                
+                # Thread to consume output so it doesn't block
+                def monitor_output(proc):
+                    for line in iter(proc.stdout.readline, ''):
+                        pass # Could pipe to a GUI log window later
+                threading.Thread(target=monitor_output, args=(self.proxy_process,), daemon=True).start()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to start server: {e}")
+                self.proxy_process = None
+        else:
+            # Stop
+            self.proxy_process.terminate()
+            self.proxy_process = None
+            self.btn_start_server.configure(text="▶ Start Proxy Server", fg_color="#2ea44f", hover_color="#3fb950")
+            self.server_status_lbl.configure(text="Status: Stopped", text_color="#8b949e")
 
     def _copy_to_clipboard(self, text, source_name):
         self.clipboard_clear()
@@ -318,6 +430,14 @@ class LMStudioConfigGUI(ctk.CTk):
         self.model_menu.configure(values=names)
         self.model_menu.set(names[0])
         self._on_model_select(names[0])
+        
+        # Update server map dropdowns
+        tab = self.tabview.tab("🚀 Server & Models")
+        for child in tab.winfo_children():
+            if isinstance(child, ctk.CTkFrame):
+                for subchild in child.winfo_children():
+                    if isinstance(subchild, ctk.CTkOptionMenu):
+                        subchild.configure(values=names)
 
     def _get_specs_cached(self, model_id: str) -> dict:
         if model_id not in self._model_specs_cache:
