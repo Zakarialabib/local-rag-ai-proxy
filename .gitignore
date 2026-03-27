@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Virtual environment
+venv/
+.env/
+
+# macOS specific files
+.DS_Store
+
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+
+
+# IDE configurations
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/

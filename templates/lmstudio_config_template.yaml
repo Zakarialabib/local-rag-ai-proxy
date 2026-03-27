@@ -1,0 +1,40 @@
+# Initial YAML file template for configuring the model in LM Studio
+# This file is dynamically populated with hardware_utils and recommender data
+
+
+model:
+  name: "{{ model_name }}"
+  context_length: {{ context_length }}
+
+load:
+  gpu_offload: {{ gpu_offload }}
+  cpu_thread_pool_size: {{ cpu_threads }}
+  evaluation_batch_size: {{ eval_batch_size }}
+  offload_kv_cache: {{ offload_kv_cache | default(true) }}
+  keep_model_in_memory: {{ keep_in_memory | default(true) }}
+  try_mmap: {{ try_mmap | default(true) }}
+
+inference:
+  temperature: {{ temperature }}
+  top_p: {{ top_p }}
+  top_k: {{ top_k }}
+  repeat_penalty: {{ repeat_penalty }}
+  max_tokens: {{ max_tokens }}
+
+speculative_decoding:
+  enabled: false
+
+advanced:
+  flash_attention: {{ flash_attention | default(false) }}
+  k_cache_quantization: {{ k_cache_quantization | default("none") }}
+  v_cache_quantization: {{ v_cache_quantization | default("none") }}
+
+metadata:
+  recommended_for: "{{ user_goal }}"
+  system:
+    cpu: "{{ cpu }}"
+    ram_gb: {{ ram_gb }}
+    gpu: "{{ gpu }}"
+    gpu_memory_mb: {{ gpu_memory_mb }}
+
+# End of file
