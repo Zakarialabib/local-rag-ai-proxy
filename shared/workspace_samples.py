@@ -1,0 +1,117 @@
+WORKSPACE_TESTS = [
+    {
+        "id": "coding_palindrome",
+        "label": "Coding: Palindrome",
+        "use_case": "coding",
+        "input": "Write a Python function to find the longest palindromic substring in a given string. Optimize for O(n^2) time complexity and explain your approach step by step.",
+    },
+    {
+        "id": "system_design_rate_limiter",
+        "label": "System Design: Rate Limiter",
+        "use_case": "coding",
+        "input": "Design a rate limiter for a REST API that handles 10,000 requests per second per user. Consider distributed systems constraints, edge cases, and failure modes. Provide the core algorithm and data structure choices.",
+    },
+    {
+        "id": "debug_asyncio_race",
+        "label": "Debugging: Asyncio Race",
+        "use_case": "coding",
+        "input": "I have a race condition in my async Python code using asyncio. The symptoms are intermittent 'Event loop is closed' errors under high load. Walk me through your diagnostic process to identify the root cause and propose fixes.",
+    },
+    {
+        "id": "logic_number_proof",
+        "label": "Logic: Number Proof",
+        "use_case": "logic",
+        "input": "Prove that the sum of two even numbers is always even, then extend this to show why the product of any two integers of the form 6k±1 must also be of that form. Show your complete reasoning chain.",
+    },
+    {
+        "id": "code_review_fibonacci",
+        "label": "Code Review: Fibonacci",
+        "use_case": "coding",
+        "input": "Review this recursive Fibonacci implementation for performance issues. Propose an optimized version with O(n) time and O(1) space, then explain the trade-offs between memoization and iterative approaches.\n\n```python\ndef fib(n):\n    if n <= 1:\n        return n\n    return fib(n-1) + fib(n-2)\n```",
+    },
+]
+
+
+WORKSPACE_PRESETS = [
+    {
+        "id": "thinking_precise_coding",
+        "label": "Preset A: Precise Coding",
+        "target_use_case": "coding",
+        "notes": [
+            "Recommended for deterministic coding and debugging work.",
+            "Keeps reasoning on while avoiding overly random output.",
+        ],
+        "responses": {
+            "mode": "think",
+            "reasoning_effort": "medium",
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.0,
+            "max_output_tokens": 1024,
+        },
+        "chat": {
+            "mode": "think",
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.0,
+            "max_tokens": 1024,
+            "stream": False,
+        },
+    },
+    {
+        "id": "thinking_general",
+        "label": "Preset B: Thinking General",
+        "target_use_case": "balanced",
+        "notes": [
+            "For broader reasoning and planning tasks.",
+            "Allows more breadth while still keeping structure.",
+        ],
+        "responses": {
+            "mode": "think",
+            "reasoning_effort": "high",
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.0,
+            "max_output_tokens": 1024,
+        },
+        "chat": {
+            "mode": "think",
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.0,
+            "max_tokens": 1024,
+            "stream": False,
+        },
+    },
+    {
+        "id": "balanced_tuned_local",
+        "label": "Preset C: Balanced Local",
+        "target_use_case": "balanced",
+        "notes": [
+            "Tuned for constrained local hardware and stable throughput.",
+            "Good default when you want balanced quality without long runs.",
+        ],
+        "responses": {
+            "mode": "fast",
+            "reasoning_effort": "medium",
+            "temperature": 0.5,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.05,
+            "max_output_tokens": 1024,
+        },
+        "chat": {
+            "mode": "fast",
+            "temperature": 0.5,
+            "top_p": 0.95,
+            "top_k": 20,
+            "repeat_penalty": 1.05,
+            "max_tokens": 1024,
+            "stream": False,
+        },
+    },
+]

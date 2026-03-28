@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "LM Studio Web Console" }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div class="mx-auto max-w-7xl px-4 py-6">
+    {% block body %}
+    <div class="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
+      <h1 class="text-xl font-semibold">LM Studio Web Console</h1>
+      <pre class="mt-4 whitespace-pre-wrap text-sm text-slate-300">{{ content }}</pre>
+    </div>
+    {% endblock %}
+  </div>
+</body>
+</html>

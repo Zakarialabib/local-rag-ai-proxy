@@ -1,0 +1,832 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root {
+        --bg-main: #0a0a0f;
+        --bg-sidebar: rgba(15, 15, 23, 0.85);
+        --bg-card: rgba(22, 22, 33, 0.6);
+        --bg-input: rgba(30, 30, 45, 0.5);
+        
+        --glass-border: rgba(255, 255, 255, 0.05);
+        --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        
+        --text-primary: #ffffff;
+        --text-secondary: #94a3b8;
+        --text-muted: #64748b;
+        
+        --accent-primary: #3b82f6;
+        --accent-glow: rgba(59, 130, 246, 0.5);
+        --accent-secondary: #8b5cf6;
+        --accent-success: #10b981;
+        --accent-warning: #f59e0b;
+        --accent-error: #ef4444;
+        
+        --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: var(--font-sans);
+        background: radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+                    radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%),
+                    var(--bg-main);
+        color: var(--text-primary);
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Glassmorphism Classes */
+    .glass {
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-shadow);
+        border-radius: 16px;
+    }
+
+    .glass-input {
+        background: var(--bg-input);
+        border: 1px solid var(--glass-border);
+        color: var(--text-primary);
+        border-radius: 12px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: var(--font-sans);
+    }
+    
+    .glass-input:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        background: rgba(30, 30, 45, 0.8);
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+    /* Layout */
+    .sidebar {
+        width: 280px;
+        background: var(--bg-sidebar);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+    }
+
+    .brand {
+        padding: 24px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+        border-bottom: 1px solid var(--glass-border);
+    }
+    .brand h1 {
+        font-size: 22px;
+        font-weight: 700;
+        background: linear-gradient(90deg, #fff, var(--text-secondary));
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: -0.5px;
+    }
+
+    .nav-container { flex: 1; overflow-y: auto; padding: 16px 12px; }
+    
+    .nav-item {
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+    }
+    
+    .nav-item.active {
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), transparent);
+        color: #fff;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    
+    .nav-item.active::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        background: var(--accent-primary);
+        box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .main-content {
+        flex: 1;
+        position: relative;
+        overflow-y: auto;
+        padding: 32px;
+        /* Custom scrollbar matching container */
+    }
+
+    .view-section {
+        display: none;
+        animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .view-section.active { display: block; }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Common Components */
+    .page-title {
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .grid-1 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+    .grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
+
+    .card-header {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--text-primary);
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: 500;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-family: var(--font-sans);
+        border: none;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    }
+    
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+    
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Custom Elements */
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        background: linear-gradient(to right, #fff, #94a3b8);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        line-height: 1.2;
+    }
+
+    .progress-bar {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+
+    .badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .console-output {
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.5;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        color: #a78bfa;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 24px;
+    }
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 7px; top: 0; bottom: 0;
+        width: 2px;
+        background: rgba(255,255,255,0.05);
+    }
+    .timeline-item {
+        position: relative;
+        margin-bottom: 24px;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -22px; top: 6px;
+        width: 12px; height: 12px;
+        border-radius: 50%;
+        background: var(--accent-primary);
+        box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    /* Forms */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+    }
+    .form-control {
+        width: 100%;
+        padding: 12px 14px;
+        font-size: 14px;
+    }
+    textarea.form-control { min-height: 120px; resize: vertical; }
+</style>
+
+<div class="sidebar">
+    <div class="brand">
+        <h1>Proxy Core <span style="font-weight: 300; color: var(--accent-primary);">UI</span></h1>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Intelligence Orchestrator</p>
+    </div>
+    
+    <div class="nav-container">
+        <div class="nav-item active" onclick="switchView('overview', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            Overview
+        </div>
+        <div class="nav-item" onclick="switchView('playground', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
+            Inference Lab
+        </div>
+        <div class="nav-item" onclick="switchView('context', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Context Engine
+        </div>
+        <div class="nav-item" onclick="switchView('sessions', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Session Viewer
+        </div>
+        <div class="nav-item" onclick="switchView('presets', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Preset Manager
+        </div>
+        <div class="nav-item" onclick="switchView('settings', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            System Sync
+        </div>
+    </div>
+</div>
+
+<div class="main-content">
+
+    <!-- OVERVIEW -->
+    <div id="view-overview" class="view-section active">
+        <h2 class="page-title">Intelligence Overview</h2>
+        
+        <div class="grid-4 mb-8" style="margin-bottom: 24px;">
+            <div class="glass" style="padding: 20px;">
+                <div class="form-label">Main Inference</div>
+                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.main|truncate(20)|default('Not Loaded') }}</div>
+            </div>
+            <div class="glass" style="padding: 20px;">
+                <div class="form-label">System Reasoning</div>
+                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.reasoning|truncate(20)|default('Not Loaded') }}</div>
+            </div>
+            <div class="glass" style="padding: 20px;">
+                <div class="form-label">Vector Embeddings</div>
+                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.embed|truncate(20)|default('Not Loaded') }}</div>
+            </div>
+            <div class="glass" style="padding: 20px;">
+                <div class="form-label">Semantic Reranker</div>
+                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.rerank|truncate(20)|default('Not Loaded') }}</div>
+            </div>
+        </div>
+
+        <div class="grid-12">
+            <div class="glass" style="grid-column: span 8; padding: 24px;">
+                <div class="card-header">Hardware Utilization</div>
+                <div class="grid-3" style="margin-top: 20px;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="form-label">GPU VRAM</span>
+                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-primary);">
+                                {{ hardware.vram_used_gb|round(1)|default(0) }} / {{ hardware.vram_total_gb|round(1)|default(1) }} GB
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="background: linear-gradient(90deg, #3b82f6, #60a5fa); width: {{ (hardware.vram_used_gb / (hardware.vram_total_gb or 1) * 100)|default(0)|int }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="form-label">System RAM</span>
+                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-secondary);">
+                                {{ hardware.ram_used_gb|round(1)|default(0) }} / {{ hardware.ram_total_gb|round(1)|default(1) }} GB
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="background: linear-gradient(90deg, #8b5cf6, #a78bfa); width: {{ (hardware.ram_used_gb / (hardware.ram_total_gb or 1) * 100)|default(0)|int }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span class="form-label">CPU Nodes</span>
+                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-success);">
+                                {{ hardware.cpu_percent|default(0)|int }}%
+                            </span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="background: linear-gradient(90deg, #10b981, #34d399); width: {{ hardware.cpu_percent|default(0)|int }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-header" style="margin-top: 32px;">Active Sessions Overview</div>
+                <div style="margin-top: 16px;">
+                    {% if dashboard.ace_sessions|length == 0 and dashboard.agent_sessions|length == 0 %}
+                    <div style="text-align: center; padding: 30px; color: var(--text-muted); border: 1px dashed var(--glass-border); border-radius: 12px;">
+                        No active ACE or Agent sessions running.
+                    </div>
+                    {% else %}
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        {% for s in dashboard.ace_sessions[:3] %}
+                        <div class="glass-input" style="padding: 12px; flex: 1; min-width: 200px;">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">ACE Session</div>
+                            <div style="font-weight: 500;">{{ s.agent_name|default('Unknown') }}</div>
+                            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-success); margin-top: 8px;">{{ s.status|default('active') }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="glass" style="grid-column: span 4; padding: 24px;">
+                <div class="card-header">System Health <div class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">Optimal</div></div>
+                
+                <div class="timeline" style="margin-top: 24px;">
+                    <div class="timeline-item">
+                        <div style="font-size: 14px; font-weight: 500;">Bridge Connected</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">{{ dashboard.state.bridge_base }}</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div style="font-size: 14px; font-weight: 500;">LM Studio Synced</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Models verified</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div style="font-size: 14px; font-weight: 500;">Context Engine Active</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">TF-IDF Summarization Ready</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFERENCE LAB -->
+    <div id="view-playground" class="view-section">
+        <h2 class="page-title">Inference Lab</h2>
+        <div class="grid-12">
+            <div class="glass" style="grid-column: span 8; padding: 24px;">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Execution Mode</label>
+                        <select id="inference-mode" class="glass-input form-control">
+                            <option value="direct">Direct Completion</option>
+                            <option value="rag">RAG (Retrieval Augmented)</option>
+                            <option value="ace">ACE Reflection</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Target Role</label>
+                        <select id="inference-role" class="glass-input form-control">
+                            <option value="main">Main ({{ dashboard.state.role_map.main|truncate(15) }})</option>
+                            <option value="reasoning">Reasoning ({{ dashboard.state.role_map.reasoning|truncate(15) }})</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">System Instructions / Preset Template</label>
+                    <textarea id="inference-system" class="glass-input form-control" style="min-height: 80px;">You are an expert system. Think step by step.</textarea>
+                    <div style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Developer</button>
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Analyst</button>
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Creative</button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">User Query</label>
+                    <textarea id="inference-query" class="glass-input form-control" placeholder="Enter your prompt here..."></textarea>
+                </div>
+                
+                <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="document.getElementById('inference-query').value = ''">Clear</button>
+                    <button class="btn btn-primary" onclick="runInference()">Execute Generation</button>
+                </div>
+                
+                <div class="card-header" style="margin-top: 32px; border-top: 1px solid var(--glass-border); padding-top: 24px;">Output</div>
+                <div id="inference-output" class="console-output" style="min-height: 200px; color: var(--text-primary);">
+                    <span style="color: var(--text-muted)">Awaiting execution...</span>
+                </div>
+            </div>
+            
+            <div class="glass" style="grid-column: span 4; padding: 24px;">
+                <div class="card-header">Generation Parameters</div>
+                
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between;">
+                        <label class="form-label">Temperature</label>
+                        <span id="label-temp" style="font-size: 13px; color: var(--text-secondary);">0.7</span>
+                    </div>
+                    <input type="range" id="param-temp" min="0" max="2" step="0.1" value="0.7" style="width: 100%;" oninput="document.getElementById('label-temp').innerText=this.value">
+                </div>
+                
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between;">
+                        <label class="form-label">Top-P</label>
+                        <span id="label-topp" style="font-size: 13px; color: var(--text-secondary);">0.9</span>
+                    </div>
+                    <input type="range" id="param-topp" min="0" max="1" step="0.05" value="0.9" style="width: 100%;" oninput="document.getElementById('label-topp').innerText=this.value">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Max Output Tokens</label>
+                    <input type="number" id="param-tokens" class="glass-input form-control" value="2048">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Hardware Profile Override</label>
+                    <select class="glass-input form-control">
+                        <option>Auto (Hardware Aware)</option>
+                        <option>Force Max GPU</option>
+                        <option>Force CPU Offload</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEXT ENGINE -->
+    <div id="view-context" class="view-section">
+        <h2 class="page-title">Context Engineering & Token Budget</h2>
+        <div class="grid-12">
+            <div class="glass" style="grid-column: span 12; padding: 24px;">
+                <div class="grid-3" style="margin-bottom: 24px;">
+                    <div class="glass-input" style="padding: 16px; text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Total Context Budget</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-primary); margin-top: 8px;">128,000</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Tokens</div>
+                    </div>
+                    <div class="glass-input" style="padding: 16px; text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Current Usage</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-success); margin-top: 8px;">4,250</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">~3.3% capacity</div>
+                    </div>
+                    <div class="glass-input" style="padding: 16px; text-align: center;">
+                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Compression Ratio</div>
+                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-secondary); margin-top: 8px;">4.2x</div>
+                        <div style="font-size: 11px; color: var(--text-muted);">Via TF-IDF Algo</div>
+                    </div>
+                </div>
+                
+                <div class="card-header">Memory Visualization</div>
+                <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; margin-top: 16px;">
+                    <div style="width: 15%; background: var(--accent-primary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">System (15%)</div>
+                    <div style="width: 25%; background: var(--accent-secondary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">RAG (25%)</div>
+                    <div style="width: 20%; background: var(--accent-success); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">Compacted (20%)</div>
+                    <div style="width: 10%; background: var(--accent-warning); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #000;">Recent (10%)</div>
+                    <div style="width: 30%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-muted);">Free Space</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SESSION VIEWER -->
+    <div id="view-sessions" class="view-section">
+        <h2 class="page-title">Session Viewer & Data</h2>
+        <div class="grid-12">
+            <div class="glass" style="grid-column: span 4; padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 600px;">
+                <div style="padding: 20px; border-bottom: 1px solid var(--glass-border);">
+                    <input type="text" class="glass-input form-control" placeholder="Search sessions...">
+                </div>
+                <div style="overflow-y: auto; flex: 1;">
+                    <!-- Placeholder Sessions -->
+                    <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; background: rgba(59, 130, 246, 0.1);">
+                        <div style="font-weight: 600; font-size: 14px;">Code Refactor #401</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">ACE Agent • 14 min ago</div>
+                    </div>
+                    <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
+                        <div style="font-weight: 600; font-size: 14px;">Docs Summarization</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Workflow • 2 hours ago</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass" style="grid-column: span 8; padding: 24px; position: relative;">
+                <div class="card-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 24px;">Code Refactor #401 Timeline</div>
+                
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div style="font-size: 12px; color: var(--text-muted);">14 mins ago</div>
+                        <div class="glass-input" style="padding: 12px; margin-top: 8px;">
+                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-primary); margin-bottom: 4px;">User</div>
+                            <div style="font-size: 14px;">Please refactor the context_manager to use TF-IDF algorithmic summarization.</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div style="font-size: 12px; color: var(--text-muted);">13 mins ago</div>
+                        <div class="glass-input" style="padding: 12px; margin-top: 8px; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3);">
+                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-secondary); margin-bottom: 4px;">Agent: Thinking</div>
+                            <div style="font-family: var(--font-mono); font-size: 12px; color: #a78bfa;">Analyzed request. Identifying dependencies. Implementing `numpy`-backed TF-IDF algorithm to avoid heavy NLTK loads...</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div style="font-size: 12px; color: var(--text-muted);">12 mins ago</div>
+                        <div class="glass-input" style="padding: 12px; margin-top: 8px;">
+                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-success); margin-bottom: 4px;">Agent: Code Execution</div>
+                            <div class="console-output" style="margin-top: 8px; padding: 8px;">Executed file replacements successfully. Reloading module states.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="position: absolute; bottom: 24px; left: 24px; right: 24px; display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" style="flex: 1;">Resume Session</button>
+                    <button class="btn btn-primary" style="flex: 1;">Branch from Checkpoint</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRESETS -->
+    <div id="view-presets" class="view-section">
+        <h2 class="page-title">Preset Config Manager</h2>
+        
+        <div class="grid-12">
+            <div class="glass" style="grid-column: span 12; padding: 24px;">
+                <div class="card-header">
+                    <span>LM Studio Sync</span>
+                    <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Auto-Discover System Hardware</button>
+                </div>
+                
+                <div class="grid-3" style="margin-top: 24px;">
+                    <div class="glass-input" style="padding: 20px; text-align: center; border-color: var(--accent-primary);">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="margin: 0 auto 12px auto;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <div style="font-weight: 600;">Max Throughput</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Optimized for coding sprints and fast RAG. Sacrifices some precision.</div>
+                        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
+                    </div>
+                    
+                    <div class="glass-input" style="padding: 20px; text-align: center;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" stroke-width="2" style="margin: 0 auto 12px auto;"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <div style="font-weight: 600;">Deep Reasoning</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Max precision, high context. Slower generation optimized for math/logic.</div>
+                        <button class="btn btn-secondary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
+                    </div>
+                    
+                    <div class="glass-input" style="padding: 20px; text-align: center;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" stroke-width="2" style="margin: 0 auto 12px auto;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        <div style="font-weight: 600;">Hardware Tuned</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Specific setup generated by analyzing your environment and GPUs.</div>
+                        <button class="btn btn-secondary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="glass" style="grid-column: span 12; padding: 24px;">
+                <div class="card-header">Bidirectional .env Manager</div>
+                <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                    Export logic updates your LM Studio presets directory directly, while saving here automatically writes to the proxy `.env` file to ensure the systems share identical configurations.
+                </div>
+                <div class="console-output" style="background: rgba(0,0,0,0.6); color: #fff;">
+                    # .env Preview<br>
+                    MAIN_MODEL={{ dashboard.state.role_map.main|default('') }}<br>
+                    REASONING_MODEL={{ dashboard.state.role_map.reasoning|default('') }}<br>
+                    EMBED_MODEL={{ dashboard.state.role_map.embed|default('') }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="view-settings" class="view-section">
+        <h2 class="page-title">System Synchronization</h2>
+        <div class="glass" style="padding: 24px; max-width: 600px;">
+            <div class="form-group">
+                <label class="form-label">Proxy Bridge Backend URL</label>
+                <input type="text" class="glass-input form-control" value="{{ dashboard.state.bridge_base }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label">LM Studio Local Server URL</label>
+                <input type="text" class="glass-input form-control" value="{{ dashboard.state.lmstudio_base }}">
+            </div>
+            <button class="btn btn-primary" style="margin-top: 16px;">Save System Config</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Include CSRF Token
+    const csrfToken = '{{ csrf_token() }}';
+
+    async function apiPost(url, body) {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": csrfToken,
+            },
+            body: JSON.stringify(body || {}),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || data.detail || "Request failed");
+        }
+        return data;
+    }
+
+    function switchView(viewId, element) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        const targetView = document.getElementById('view-' + viewId);
+        if(targetView) targetView.classList.add('active');
+        if(element) element.classList.add('active');
+    }
+
+    async function runInference() {
+        const query = document.getElementById('inference-query').value;
+        const out = document.getElementById('inference-output');
+        const system = document.getElementById('inference-system').value;
+        const temp = parseFloat(document.getElementById('param-temp').value) || 0.7;
+        const topp = parseFloat(document.getElementById('param-topp').value) || 0.9;
+        const maxTokens = parseInt(document.getElementById('param-tokens').value) || 2048;
+        const mode = document.getElementById('inference-mode').value;
+        const role = document.getElementById('inference-role').value;
+
+        out.innerHTML = '<span style="color: var(--accent-primary);">Generating execution plan...</span><br><br>';
+        
+        try {
+            const payload = {
+                model: role === 'main' ? '{{ dashboard.state.role_map.main|default("default") }}' : '{{ dashboard.state.role_map.reasoning|default("default") }}',
+                system_prompt: system,
+                input: query,
+                mode: mode,
+                temperature: temp,
+                top_p: topp,
+                max_tokens: maxTokens,
+                stream: false
+            };
+
+            const task = await apiPost('/api/requests/chat/run', payload);
+            
+            out.innerHTML += '<span style="color: var(--accent-secondary);">Task Dispatched: ' + task.task_id + '</span><br>';
+            out.innerHTML += '<span style="color: var(--accent-secondary);">Awaiting bridge response...</span><br><br>';
+
+            // Poll the task
+            for (;;) {
+                const response = await fetch('/api/tasks/' + task.task_id);
+                const taskStatus = await response.json();
+                
+                if (taskStatus.status === "completed") {
+                    const result = taskStatus.result;
+                    let displayContent = "";
+                    if (result.output_text) {
+                        displayContent = result.output_text;
+                    } else if (result.choices && result.choices[0]) {
+                        displayContent = result.choices[0].message.content || JSON.stringify(result.choices[0].message);
+                    } else {
+                        displayContent = JSON.stringify(result, null, 2);
+                    }
+                    out.innerHTML = displayContent.replace(/\n/g, '<br>');
+                    break;
+                }
+                
+                if (taskStatus.status === "failed") {
+                    out.innerHTML = '<span style="color: var(--accent-error);">Error executing inference: ' + taskStatus.error + '</span>';
+                    break;
+                }
+                
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        } catch(e) {
+            out.innerHTML = '<span style="color: var(--accent-error);">Error executing inference: ' + e.message + '</span>';
+        }
+    }
+
+    async function saveSystemConfig() {
+        const bridgeUrl = document.getElementById('bridge-base').value;
+        const lmstudioUrl = document.getElementById('lmstudio-base').value;
+        try {
+            await apiPost("/api/runtime/update-config", {
+                bridge_base: bridgeUrl,
+                lmstudio_base: lmstudioUrl,
+            });
+            alert("System configuration synced and saved successfully.");
+        } catch(e) {
+            alert("Failed to save config: " + e.message);
+        }
+    }
+
+    async function refreshHardware() {
+        try {
+            await apiPost("/api/runtime/refresh", {});
+            window.location.reload();
+        } catch(e) {
+            alert("Failed to discover hardware: " + e.message);
+        }
+    }
+
+    // Attach Settings Handlers
+    document.addEventListener("DOMContentLoaded", () => {
+        const settingsSaveBtn = document.querySelector('#view-settings .btn-primary');
+        if (settingsSaveBtn) {
+            settingsSaveBtn.onclick = saveSystemConfig;
+        }
+
+        const hardwareRefreshBtn = document.querySelector('#view-presets .btn-secondary');
+        if (hardwareRefreshBtn && hardwareRefreshBtn.textContent.includes('Auto-Discover')) {
+            hardwareRefreshBtn.onclick = refreshHardware;
+        }
+
+        // Attach buttons in inference lab to populate system prompts quickly
+        const presetTabs = document.querySelectorAll('#view-playground .btn-secondary');
+        presetTabs.forEach(btn => {
+            if (btn.textContent === 'Developer') {
+                btn.onclick = () => { document.getElementById('inference-system').value = 'You are an expert Python and Javascript full-stack software engineer. Provide very concise, correct, and optimal code without prose.' };
+            } else if (btn.textContent === 'Analyst') {
+                btn.onclick = () => { document.getElementById('inference-system').value = 'You are a senior data analyst. Think step-by-step to dissect the provided datasets, highlighting key trends, anomalies, and statistical conclusions.' };
+            } else if (btn.textContent === 'Creative') {
+                btn.onclick = () => { document.getElementById('inference-system').value = 'You are a creative writer and UX designer. Think vibrantly and optimize for aesthetic charm.' };
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,5 +1,8 @@
 from typing import Dict, Optional
+import structlog
 from models import QuantizationType, InferenceBackend
+
+logger = structlog.get_logger()
 
 # Optional Numba JIT compiler for high-performance math operations
 try:

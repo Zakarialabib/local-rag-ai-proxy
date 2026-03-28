@@ -8,8 +8,16 @@ class ConfigExporter:
     """Exports optimized configuration to LM Studio formats."""
     
     @staticmethod
-    def build_preset_dict(rec: ModelRecommendation) -> dict:
-        """Build the LM Studio preset dictionary without writing to disk."""
+    def build_preset_dict(
+        rec: ModelRecommendation,
+        *,
+        profile: dict | None = None,
+        hardware: dict | None = None,
+        name: str | None = None,
+        identifier: str | None = None,
+    ) -> dict:
+        """Build an LM Studio preset with bridge-aware metadata and legacy mirrors."""
+        profile = profile or {}
         
         op_fields = [
             {"key": "llm.prediction.temperature", "value": rec.temperature},
@@ -27,8 +35,8 @@ class ConfigExporter:
             custom_fields.append({"key": "enableThinking", "value": True})
 
         preset = {
-            "identifier": f"@local:{rec.model_id.replace('/', '-').lower()}-{rec.quantization.value.lower()}",
-            "name": f"{rec.model_id} - Optimized ({rec.quantization.value})",
+            "identifier": identifier or f"@local:{rec.model_id.replace('/', '-').lower()}-{rec.quantization.value.lower()}",
+            "name": name or f"{rec.model_id} - Optimized ({rec.quantization.value})",
             "changed": True,
             "importedTimeStamp": int(time.time() * 1000),
             "operation": {
@@ -46,13 +54,43 @@ class ConfigExporter:
                     {"key": "llm.load.numa", "value": rec.numa_support},
                 ]
             },
+            "inference_params": {
+                "n_threads": rec.threads,
+                "n_predict": rec.max_tokens,
+                "top_k": rec.top_k,
+                "top_p": rec.top_p,
+                "temp": rec.temperature,
+                "repeat_penalty": rec.repeat_penalty,
+                "pre_prompt": rec.system_prompt or "",
+                "memory_f16": rec.kv_cache_quant == "f16",
+            },
+            "load_params": {
+                "n_ctx": rec.context_length,
+                "n_batch": rec.batch_size,
+                "n_gpu_layers": rec.gpu_layers,
+                "f16_kv": rec.kv_cache_quant == "f16",
+                "use_mmap": rec.use_mmap,
+            },
             "_wizard_meta": {
                 "backend": rec.inference_backend.value,
                 "engine": rec.inference_engine,
                 "quality_score": rec.quality_score,
-                "generated_by": "lmstudio-config-wizard-v3.1",
+                "generated_by": "lmstudio-agent-console-v7",
+            },
+            "_bridge_profile": {
+                "mode": profile.get("mode", "fast"),
+                "embed_model": profile.get("embed_model"),
+                "rerank_model": profile.get("rerank_model"),
+                "retrieval": {
+                    "chunk_size": profile.get("chunk_size"),
+                    "chunk_overlap": profile.get("chunk_overlap"),
+                    "top_k": profile.get("retrieval_top_k"),
+                    "max_context_chars": profile.get("max_context_chars"),
+                },
             },
         }
+        if hardware:
+            preset["_hardware_profile"] = hardware
         
         if custom_fields:
             preset["customFields"] = custom_fields
@@ -60,9 +98,23 @@ class ConfigExporter:
         return preset
 
     @staticmethod
-    def export_preset(rec: ModelRecommendation, path: Path):
+    def export_preset(
+        rec: ModelRecommendation,
+        path: Path,
+        *,
+        profile: dict | None = None,
+        hardware: dict | None = None,
+        name: str | None = None,
+        identifier: str | None = None,
+    ):
         """Write LM Studio User Preset JSON to disk."""
-        preset = ConfigExporter.build_preset_dict(rec)
+        preset = ConfigExporter.build_preset_dict(
+            rec,
+            profile=profile,
+            hardware=hardware,
+            name=name,
+            identifier=identifier,
+        )
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(preset, indent=2))
     

@@ -3,6 +3,7 @@ import psutil
 import subprocess
 import sys
 import re
+import warnings
 import structlog
 from typing import Dict, Optional
 
@@ -56,9 +57,11 @@ class HardwareDetector:
         
         # 1. nvidia-ml-py (successor to pynvml, no deprecation warnings)
         try:
-            from pynvml import nvmlInit, nvmlShutdown, nvmlDeviceGetHandleByIndex
-            from pynvml import nvmlDeviceGetName, nvmlDeviceGetMemoryInfo
-            from pynvml import nvmlDeviceGetCudaComputeCapability
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                from pynvml import nvmlInit, nvmlShutdown, nvmlDeviceGetHandleByIndex
+                from pynvml import nvmlDeviceGetName, nvmlDeviceGetMemoryInfo
+                from pynvml import nvmlDeviceGetCudaComputeCapability
             
             nvmlInit()
             handle = nvmlDeviceGetHandleByIndex(0)
@@ -91,7 +94,9 @@ class HardwareDetector:
             logger.debug("nvidia_ml_py_not_installed_trying_pynvml")
             # Fallback to pynvml if nvidia-ml-py not available
             try:
-                import pynvml
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", FutureWarning)
+                    import pynvml
                 pynvml.nvmlInit()
                 handle = pynvml.nvmlDeviceGetHandleByIndex(0)
                 name = pynvml.nvmlDeviceGetName(handle)

@@ -1,11 +1,11 @@
 # LM Studio Optimization MCP Server
 # This module is standalone — it mounts alongside proxy.py, not inside it.
-# Usage: python mcp_server.py  (runs on port 8090 to avoid conflict with proxy.py port 8080)
+# Usage: python mcp_server.py  (runs on port 8080 to avoid conflict with proxy.py port 8080)
 from typing import Any
 import httpx
 import json
 
-LMSTUDIO_BASE = "http://192.168.1.12:1234"
+LMSTUDIO_BASE = "http://"
 
 TOOLS = [
     {
@@ -114,5 +114,5 @@ if __name__ == "__main__":
         result = await call_tool(name, arguments)
         return {"result": result}
 
-    print("MCP tool server running on http://0.0.0.0:8090")
-    uvicorn.run(app, host="0.0.0.0", port=8090)
+    print("MCP tool server running on http://127.0.0.1:8080")
+    uvicorn.run(app, host="127.0.0.1", port=8080)

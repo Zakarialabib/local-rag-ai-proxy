@@ -1,16 +1,20 @@
 from fastapi import FastAPI, Request, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from benchmark import StreamingBenchmark
 from contextlib import asynccontextmanager
 import httpx
 import asyncio
 import time
 import json
+import re
 import sys
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from pathlib import Path
 import os
+import uuid
 from dotenv import load_dotenv
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -21,32 +25,60 @@ from tuner import AdaptiveTuner
 from cache_manager import CacheManager
 from domain_router import DomainRouter
 from context_manager import ContextManager
-from embedder import Embedder
-from reranker import get_reranker, LMStudioReranker
-import logging
-import structlog
+from lmstudio_bridge import LMStudioBridge, RetrievalConfig, ChunkingConfig
+from exporters import ConfigExporter
+from shared.ace import ACEOrchestrator, ACESessionStore
+from shared.agent_orchestrator import AgentOrchestrator
+from shared.agent_state import AgentSessionStore
+from shared.agent_tools import AgentToolRegistry
 from datetime import datetime
+from logger_config import setup_logger, setup_structlog, log_api_error, error_to_dict
 
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text-v1.5")
-RERANK_MODEL = os.getenv("RERANK_MODEL", "bge-reranker-v2-m3")
-MAIN_MODEL = os.getenv("MAIN_MODEL", "qwen3.5-4b")
-REASONING_MODEL = os.getenv("REASONING_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
+# Setup centralized structlog for keyword argument support
+logger = setup_structlog("proxy")
+
+
+def _clean_env_model(value: str, default: str) -> str:
+    text = str(value or default).strip()
+    match = re.search(r"model_key='([^']+)'", text)
+    if match:
+        return match.group(1)
+    return text
+
+
+def _clean_bridge_host(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "127.0.0.1"
+    if "://" in text:
+        parsed = urlparse(text)
+        return parsed.hostname or "127.0.0.1"
+    return text.split(":", 1)[0] or "127.0.0.1"
+
+
+def _clean_bridge_port(value: str, default: int = 8080) -> int:
+    text = str(value or "").strip()
+    if not text:
+        return default
+    if "://" in text:
+        parsed = urlparse(text)
+        return parsed.port or default
+    try:
+        return int(text)
+    except Exception:
+        try:
+            return int(text.rsplit(":", 1)[1])
+        except Exception:
+            return default
+
+EMBED_MODEL = _clean_env_model(os.getenv("EMBED_MODEL"), "text-embedding-qwen3-embedding-4b")
+RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), "qwen3-reranker-0.6b")
+MAIN_MODEL = _clean_env_model(os.getenv("MAIN_MODEL"), "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
+REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "3"))
-# from exporters import export_preset_json  # You'll need to create this
-
-logging.basicConfig(level=logging.INFO, stream=sys.stdout, format="%(message)s")
-structlog.configure(
-    processors=[
-        structlog.stdlib.add_logger_name,
-        structlog.stdlib.add_log_level,
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.dev.ConsoleRenderer(),
-    ],
-    wrapper_class=structlog.stdlib.BoundLogger,
-    logger_factory=structlog.stdlib.LoggerFactory(),
-    cache_logger_on_first_use=False,
-)
-logger = structlog.get_logger("proxy")
+DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "900"))
+DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_CHUNK_OVERLAP", "150"))
+AUTO_LOAD_MODELS = os.getenv("AUTO_LOAD_MODELS", "true").lower() in {"1", "true", "yes", "on"}
 
 
 # Cache to track recent requests
@@ -80,8 +112,12 @@ class OptimizingProxy:
         self.cache = CacheManager()
         self.router = DomainRouter()
         self.context = ContextManager()
-        self.embedder = Embedder(base_url=self.lmstudio_base, model=EMBED_MODEL)
-        self._reranker: Optional[LMStudioReranker] = None
+        self.bridge = LMStudioBridge(
+            base_url=self.lmstudio_base,
+            embed_model=EMBED_MODEL,
+            rerank_model=RERANK_MODEL,
+            auto_load_models=AUTO_LOAD_MODELS,
+        )
         
     async def get_hardware(self) -> HardwareProfile:
         if not self.hardware:
@@ -116,9 +152,12 @@ class OptimizingProxy:
         elif vram >= 12: max_ctx = 16384
         elif vram >= 8: max_ctx = 8192
         else: max_ctx = 4096
+        low_resource = vram <= 8.5 or (hw.system_ram_gb or 0) <= 16.5
         
         body["max_tokens"] = min(body.get("max_tokens", 2048), max_ctx)
-        
+        if low_resource:
+            body["max_tokens"] = min(body.get("max_tokens", 1024), 1024)
+
         # 4. Apply domain-specific generation settings
         if domain == "code":
             body["temperature"] = min(body.get("temperature", 0.7), 0.3)
@@ -130,6 +169,14 @@ class OptimizingProxy:
 
         # 5. Routing mode — Fast / Think / Architect
         extra = body.get("extra_body", {})
+        retrieval_cfg = extra.get("retrieval", {}) if isinstance(extra, dict) else {}
+        if isinstance(retrieval_cfg, dict) and low_resource:
+            retrieval_cfg["top_k"] = min(int(retrieval_cfg.get("top_k", RERANK_TOP_K)), 3)
+            retrieval_cfg["max_context_chars"] = min(int(retrieval_cfg.get("max_context_chars", 3200)), 2400)
+            retrieval_cfg["max_chunks"] = min(int(retrieval_cfg.get("max_chunks", 64)), 24)
+            retrieval_cfg["chunk_size"] = min(int(retrieval_cfg.get("chunk_size", DEFAULT_CHUNK_SIZE)), 700)
+            retrieval_cfg["chunk_overlap"] = min(int(retrieval_cfg.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)), 100)
+            extra["retrieval"] = retrieval_cfg
         mode = extra.get("mode", None)
         if mode == "think" or domain == "reasoning":
             body["temperature"] = min(body.get("temperature", 0.7), 0.4)
@@ -137,62 +184,131 @@ class OptimizingProxy:
                 body["model"] = REASONING_MODEL
         elif mode == "architect":
             body["temperature"] = min(body.get("temperature", 0.7), 0.3)
+            if low_resource:
+                extra["mode"] = "fast"
             
         if body.get("model") == "default":
             body["model"] = MAIN_MODEL
+        if body.get("model"):
+            body["model"] = await self.bridge.resolve_model_id(body["model"])
 
-        # 6. Context enrichment — rerank + embed provided chunks or URL fetches
-        context_docs = extra.get("context_docs", [])
-        if context_docs:
-            chunks: List[str] = []
-            for doc in context_docs:
-                if isinstance(doc, dict):
-                    if doc.get("url"):
-                        try:
-                            async with httpx.AsyncClient(timeout=10) as c:
-                                r = await c.get(doc["url"])
-                                if r.status_code == 200:
-                                    chunks.append(r.text[:4000])
-                        except Exception as e:
-                            logger.warning("url_fetch_failed", url=doc["url"], error=str(e))
-                    elif doc.get("chunk"):
-                        chunks.append(str(doc["chunk"])[:2000])
-                    elif doc.get("text"):
-                        chunks.append(str(doc["text"])[:2000])
-                    elif doc.get("content"):
-                        chunks.append(str(doc["content"])[:2000])
-                elif isinstance(doc, str):
-                    chunks.append(doc[:2000])
-
-            if chunks:
-                if self._reranker is None:
-                    self._reranker = LMStudioReranker(base_url=self.lmstudio_base, model_id=RERANK_MODEL)
-                try:
-                    user_prompt = next(
-                        (m["content"] for m in body.get("messages", []) if m.get("role") == "user"),
-                        ""
-                    )
-                    reranked = await self._reranker.rerank(user_prompt, chunks, top_k=RERANK_TOP_K)
-                    if reranked:
-                        ctx_text = "\n---\n".join(
-                            f"[Context {i+1}] {r['chunk']}" for i, r in enumerate(reranked)
-                        )
-                        body["messages"].insert(
-                            1,
-                            {"role": "system", "content": f"Relevant context:\n{ctx_text}"}
-                        )
-                        logger.info("context_reranked", count=len(reranked))
-                except Exception as e:
-                    logger.warning("rerank_failed", error=str(e))
+        # 6. Context enrichment and model orchestration through the bridge
+        try:
+            body, bridge_meta = await self.bridge.enrich_chat_body(
+                body,
+                top_k=RERANK_TOP_K,
+                default_chunk_size=DEFAULT_CHUNK_SIZE,
+                default_chunk_overlap=DEFAULT_CHUNK_OVERLAP,
+            )
+            retrieval = bridge_meta.get("retrieval") if isinstance(bridge_meta, dict) else None
+            if retrieval and retrieval.get("chunks"):
+                logger.info(
+                    "context_reranked",
+                    count=len(retrieval["chunks"]),
+                    sources=retrieval.get("sources", []),
+                )
+        except Exception as e:
+            logger.warning("bridge_enrichment_failed", error=str(e))
 
         return body
                 
 proxy = OptimizingProxy()
+BRIDGE_BASE_URL = f"http://{_clean_bridge_host(os.getenv('BRIDGE_HOST', '127.0.0.1'))}:{_clean_bridge_port(os.getenv('BRIDGE_PORT', '8080'))}"
+agent_session_store = AgentSessionStore(Path(".gui_state") / "agent_sessions")
+ace_session_store = ACESessionStore(Path(".gui_state") / "ace_sessions")
+agent_tool_registry = AgentToolRegistry(root_dir=Path.cwd(), bridge_base=BRIDGE_BASE_URL)
+
+
+async def _agent_llm_generate(model_id: str, messages: list[dict], options: Dict[str, Any]) -> Dict[str, Any]:
+    body = {
+        "model": model_id or MAIN_MODEL,
+        "messages": messages,
+        "stream": False,
+        "max_tokens": 700,
+        "temperature": 0.2,
+        "extra_body": {"mode": options.get("mode", "fast")},
+    }
+    user_content = "\n".join(msg.get("content", "") for msg in messages if msg.get("role") == "user")
+    domain = proxy.router.detect_domain(user_content)
+    optimized_body = await proxy.optimize_request(body, domain)
+    async with httpx.AsyncClient(timeout=None) as client:
+        response = await client.post(
+            f"{proxy.lmstudio_base}/v1/chat/completions",
+            json=optimized_body,
+            headers={"Content-Type": "application/json"},
+        )
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+        result = response.json()
+    choices = result.get("choices") if isinstance(result, dict) else None
+    message = choices[0].get("message", {}) if choices else {}
+    content = message.get("content", "") if isinstance(message, dict) else ""
+    reasoning = message.get("reasoning_content", "") if isinstance(message, dict) else ""
+    return {
+        "content": content,
+        "reasoning_content": reasoning,
+        "raw": result,
+        "prompt_stats": {
+            "original_chars": sum(len(str(item.get("content", ""))) for item in messages),
+            "condensed_chars": sum(len(str(item.get("content", ""))) for item in messages),
+            "saved_chars": 0,
+            "saved_percent": 0.0,
+        },
+    }
+
+
+agent_orchestrator = AgentOrchestrator(
+    session_store=agent_session_store,
+    tool_registry=agent_tool_registry,
+    llm_generate=_agent_llm_generate,
+    workspace_root=Path.cwd(),
+)
+
+
+async def _ace_prepare_body(body: Dict[str, Any], domain: str) -> Dict[str, Any]:
+    return await proxy.optimize_request(body, domain)
+
+
+ace_orchestrator = ACEOrchestrator(
+    session_store=ace_session_store,
+    tool_registry=agent_tool_registry,
+    lmstudio_base=proxy.lmstudio_base,
+    prepare_body=_ace_prepare_body,
+)
+
+async def watch_env_file():
+    env_path = Path(".env")
+    last_mtime = 0
+    if env_path.exists():
+        last_mtime = env_path.stat().st_mtime
+        
+    while True:
+        await asyncio.sleep(2)
+        if env_path.exists():
+            current_mtime = env_path.stat().st_mtime
+            if current_mtime > last_mtime:
+                last_mtime = current_mtime
+                logger.info("env_file_changed", action="reloading_config")
+                load_dotenv(override=True)
+                
+                global MAIN_MODEL, REASONING_MODEL, EMBED_MODEL, RERANK_MODEL, RERANK_TOP_K
+                MAIN_MODEL = _clean_env_model(os.getenv("MAIN_MODEL"), MAIN_MODEL)
+                REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), REASONING_MODEL)
+                EMBED_MODEL = _clean_env_model(os.getenv("EMBED_MODEL"), EMBED_MODEL)
+                RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), RERANK_MODEL)
+                RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", str(RERANK_TOP_K)))
+                
+                # Update bridge explicitly
+                proxy.bridge.embed_model = EMBED_MODEL
+                proxy.bridge.rerank_model = RERANK_MODEL
+                
+                logger.info("config_reloaded", main=MAIN_MODEL, reasoning=REASONING_MODEL, embed=EMBED_MODEL, rerank=RERANK_MODEL)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await proxy.get_hardware()
     asyncio.create_task(proxy.tuner.monitor_and_tune())
+    asyncio.create_task(watch_env_file())
 
     hw = proxy.hardware
     lm = proxy.lmstudio_base
@@ -213,10 +329,32 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="LM Studio Optimization Proxy (V4.1)", lifespan=lifespan)
 
+# Configure CORS to allow requests from Flask dashboard
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8090", "http://127.0.0.1:8090", "http://localhost", "http://127.0.0.1"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.middleware("http")
 async def request_logger(request: Request, call_next):
     handle_request(request)
     return await call_next(request)
+
+# OpenAI-compatible standard endpoints (v1/ prefix)
+@app.get("/v1/models")
+async def list_models_v1():
+    """OpenAI-compatible v1 model list endpoint."""
+    async with httpx.AsyncClient(timeout=5) as client:
+        try:
+            resp = await client.get(f"{proxy.lmstudio_base}/api/v1/models")
+            data = resp.json()
+            return data
+        except Exception as e:
+            logger.error("list_models_failed", error=str(e))
+            raise HTTPException(status_code=502, detail=f"Failed to reach LM Studio: {str(e)}")
 
 @app.get("/api/v1/models")
 async def list_models_native():
@@ -250,69 +388,258 @@ async def get_model_stats():
 
 @app.post("/api/v1/embed")
 async def embed_texts(body: dict):
-    """
-    Generate embeddings for a list of texts.
-    Uses LM Studio's embedding model if available, otherwise nomic-embed-text via /v1/embeddings.
-    """
     texts = body.get("texts", [])
-    model = body.get("model", "nomic-embed-text")
+    model = body.get("model", EMBED_MODEL)
     if not texts:
         return {"embeddings": []}
+    try:
+        embeddings = await proxy.bridge.embed_texts(texts, model=model)
+        return {"embeddings": embeddings, "model": model}
+    except Exception as e:
+        logger.error("embed_failed", error=str(e))
+        return {"embeddings": [], "error": str(e)}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            resp = await client.post(
-                f"{proxy.lmstudio_base}/v1/embeddings",
-                json={"input": texts, "model": model}
-            )
-            if resp.status_code != 200:
-                return {"embeddings": [], "error": resp.text}
-            result = resp.json()
-            embeddings = result.get("data", result)
-            return {"embeddings": embeddings}
-        except Exception as e:
-            logger.error("embed_failed", error=str(e))
-            return {"embeddings": [], "error": str(e)}
+@app.post("/v1/embeddings")
+async def embed_texts_v1(body: dict):
+    """OpenAI-compatible embeddings endpoint."""
+    input_data = body.get("input", [])
+    model = body.get("model", EMBED_MODEL)
+    
+    # Normalize input to list of strings
+    if isinstance(input_data, str):
+        texts = [input_data]
+    else:
+        texts = input_data if isinstance(input_data, list) else [str(input_data)]
+    
+    if not texts:
+        return {"data": [], "model": model, "usage": {"prompt_tokens": 0, "total_tokens": 0}}
+    
+    try:
+        embeddings = await proxy.bridge.embed_texts(texts, model=model)
+        return {
+            "object": "list",
+            "data": [
+                {"object": "embedding", "index": i, "embedding": emb}
+                for i, emb in enumerate(embeddings)
+            ],
+            "model": model,
+            "usage": {
+                "prompt_tokens": sum(len(t.split()) for t in texts),
+                "total_tokens": sum(len(t.split()) for t in texts)
+            }
+        }
+    except Exception as e:
+        logger.error("embed_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/rerank")
 async def rerank(body: dict):
-    """
-    Rerank context chunks by semantic relevance to a query.
-    Embeds query + chunks, scores by cosine similarity, returns reordered list.
-    """
     query = body.get("query", "")
     chunks = body.get("chunks", [])
     top_k = body.get("top_k", 3)
-    embed_model = body.get("embed_model", "nomic-embed-text")
 
     if not query or not chunks:
         return {"reranked": chunks}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            embed_resp = await client.post(
-                f"{proxy.lmstudio_base}/v1/embeddings",
-                json={"input": [query] + chunks, "model": embed_model}
-            )
-            if embed_resp.status_code != 200:
-                return {"reranked": chunks[:top_k]}
-            data = embed_resp.json()
-            embedding_list = data.get("data", data)
-            if isinstance(embedding_list, list) and len(embedding_list) > 1:
-                query_emb = embedding_list[0].get("embedding", []) if isinstance(embedding_list[0], dict) else []
-                chunk_embs = embedding_list[1:]
-                scored = []
-                for i, emb_item in enumerate(chunk_embs):
-                    emb = emb_item.get("embedding", []) if isinstance(emb_item, dict) else []
-                    score = sum(a * b for a, b in zip(query_emb, emb)) if query_emb and emb else 0
-                    scored.append((score, i, chunks[i]))
-                scored.sort(reverse=True)
-                reranked = [c for _, _, c in scored[:top_k]]
-                return {"reranked": reranked, "scores": [s for s, _, _ in scored[:top_k]]}
-            return {"reranked": chunks[:top_k]}
-        except Exception as e:
-            logger.error("rerank_failed", error=str(e))
-            return {"reranked": chunks[:top_k]}
+    try:
+        reranked = await proxy.bridge.rerank_chunks(query, chunks, top_k=top_k)
+        return {
+            "reranked": [item["chunk"] for item in reranked],
+            "results": reranked,
+            "scores": [item["score"] for item in reranked],
+        }
+    except Exception as e:
+        logger.error("rerank_failed", error=str(e))
+        return {"reranked": chunks[:top_k], "error": str(e)}
+
+@app.post("/api/v1/retrieve")
+async def retrieve_context(body: dict):
+    query = body.get("query", "")
+    docs = body.get("docs", []) or body.get("context_docs", [])
+    retrieval = body.get("retrieval", {})
+    if not query or not docs:
+        return {"chunks": [], "context_text": "", "sources": []}
+
+    config = RetrievalConfig(
+        top_k=int(retrieval.get("top_k", RERANK_TOP_K)),
+        chunking=ChunkingConfig(
+            chunk_size=int(retrieval.get("chunk_size", DEFAULT_CHUNK_SIZE)),
+            chunk_overlap=int(retrieval.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)),
+            max_chunks=int(retrieval.get("max_chunks", 64)),
+            max_chunk_chars=int(retrieval.get("max_chunk_chars", 1600)),
+        ),
+        include_sources=bool(retrieval.get("include_sources", True)),
+        max_context_chars=int(retrieval.get("max_context_chars", 6000)),
+    )
+    try:
+        result = await proxy.bridge.build_retrieval_context(query, docs, config)
+        return result
+    except Exception as e:
+        logger.error("retrieve_failed", error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/models/load")
+async def load_model(body: dict):
+    model_id = body.get("model") or body.get("model_id")
+    if not model_id:
+        raise HTTPException(status_code=400, detail="Missing model or model_id")
+    try:
+        resolved_model_id = await proxy.bridge.resolve_model_id(model_id)
+        result = await proxy.bridge.load_model(
+            resolved_model_id,
+            context_length=body.get("context_length"),
+            identifier=body.get("identifier"),
+            gpu=body.get("gpu"),
+            ttl=body.get("ttl"),
+            eval_batch_size=body.get("eval_batch_size"),
+            flash_attention=body.get("flash_attention"),
+        )
+        return {"status": "loaded", "model": resolved_model_id, "result": result}
+    except Exception as e:
+        logger.error("model_load_failed", model=model_id, error=str(e))
+        raise HTTPException(status_code=502, detail=f"Failed to load model: {str(e)}")
+
+
+def _content_to_text(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("type")
+            if item_type in {"input_text", "output_text", "text"}:
+                parts.append(item.get("text", ""))
+        return "\n".join(part for part in parts if part)
+    if isinstance(content, dict):
+        return str(content.get("text", ""))
+    return ""
+
+
+def _responses_input_to_messages(body: Dict[str, Any]) -> list:
+    messages = []
+    instructions = body.get("instructions")
+    if instructions:
+        messages.append({"role": "system", "content": instructions})
+
+    response_input = body.get("input", "")
+    if isinstance(response_input, str):
+        if response_input.strip():
+            messages.append({"role": "user", "content": response_input})
+        return messages
+
+    if not isinstance(response_input, list):
+        return messages
+
+    for item in response_input:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "message":
+            role = item.get("role", "user")
+            text = _content_to_text(item.get("content", ""))
+            if text:
+                messages.append({"role": role, "content": text})
+            continue
+        if item.get("role"):
+            text = _content_to_text(item.get("content", ""))
+            if text:
+                messages.append({"role": item["role"], "content": text})
+            continue
+        if item.get("type") in {"input_text", "text"}:
+            text = item.get("text", "")
+            if text:
+                messages.append({"role": "user", "content": text})
+
+    return messages
+
+
+def _response_to_completion_body(body: Dict[str, Any]) -> Dict[str, Any]:
+    extra_body = dict(body.get("extra_body", {}))
+    for key in ("context_docs", "retrieval", "load_model", "mode", "embed_model", "rerank_model"):
+        if body.get(key) is not None:
+            extra_body[key] = body.get(key)
+
+    reasoning = body.get("reasoning", {})
+    if isinstance(reasoning, dict) and reasoning.get("effort") in {"medium", "high"} and "mode" not in extra_body:
+        extra_body["mode"] = "think"
+
+    completion_body: Dict[str, Any] = {
+        "model": body.get("model", MAIN_MODEL),
+        "messages": _responses_input_to_messages(body),
+        "stream": bool(body.get("stream", False)),
+        "extra_body": extra_body,
+    }
+
+    if body.get("max_output_tokens") is not None:
+        completion_body["max_tokens"] = body["max_output_tokens"]
+    if body.get("temperature") is not None:
+        completion_body["temperature"] = body["temperature"]
+    if body.get("top_p") is not None:
+        completion_body["top_p"] = body["top_p"]
+    if body.get("top_k") is not None:
+        completion_body["top_k"] = body["top_k"]
+    if body.get("repeat_penalty") is not None:
+        completion_body["repeat_penalty"] = body["repeat_penalty"]
+    if body.get("tools") is not None:
+        completion_body["tools"] = body["tools"]
+    if body.get("tool_choice") is not None:
+        completion_body["tool_choice"] = body["tool_choice"]
+    if body.get("response_format") is not None:
+        completion_body["response_format"] = body["response_format"]
+
+    return completion_body
+
+
+def _completion_to_response(result: Dict[str, Any], request_body: Dict[str, Any], retrieval_sources: Optional[list] = None) -> Dict[str, Any]:
+    created_at = int(time.time())
+    response_id = f"resp_{uuid.uuid4().hex[:24]}"
+    choices = result.get("choices", []) if isinstance(result, dict) else []
+    message = choices[0].get("message", {}) if choices else {}
+    content = message.get("content", "") if isinstance(message, dict) else ""
+    reasoning_content = message.get("reasoning_content", "") if isinstance(message, dict) else ""
+    output_items = []
+    content_items = []
+
+    if reasoning_content:
+        content_items.append({
+            "type": "reasoning",
+            "text": reasoning_content,
+        })
+    if content:
+        content_items.append({
+            "type": "output_text",
+            "text": content,
+            "annotations": [],
+        })
+    if content_items:
+        output_items.append({
+            "id": f"msg_{uuid.uuid4().hex[:24]}",
+            "type": "message",
+            "role": "assistant",
+            "status": "completed",
+            "content": content_items,
+        })
+
+    response = {
+        "id": response_id,
+        "object": "response",
+        "created_at": created_at,
+        "status": "completed",
+        "model": request_body.get("model", MAIN_MODEL),
+        "output": output_items,
+        "output_text": content,
+        "usage": result.get("usage"),
+        "metadata": {
+            "retrieval_sources": retrieval_sources or [],
+            "lmstudio_raw_id": result.get("id"),
+        },
+    }
+    if message.get("tool_calls"):
+        response["tool_calls"] = message["tool_calls"]
+    return response
+
+
 async def list_models():
     """Proxy model listing to LM Studio with short-lived TTL cache"""
     now = time.time()
@@ -332,6 +659,74 @@ async def list_models():
         except Exception as e:
             logger.error("list_models_failed", error=str(e))
             raise HTTPException(status_code=502, detail=f"Failed to reach LM Studio: {str(e)}")
+
+
+@app.post("/v1/responses")
+async def proxy_responses(request: Request):
+    body = await request.json()
+    if body.get("stream"):
+        raise HTTPException(status_code=501, detail="Streaming /v1/responses is not implemented yet. Use /v1/chat/completions for streaming.")
+
+    completion_body = _response_to_completion_body(body)
+    if not completion_body.get("messages"):
+        raise HTTPException(status_code=400, detail="Responses input did not produce any messages.")
+
+    user_content = "\n".join(
+        msg.get("content", "")
+        for msg in completion_body.get("messages", [])
+        if msg.get("role") == "user"
+    )
+    domain = proxy.router.detect_domain(user_content)
+    optimized_body = await proxy.optimize_request(completion_body, domain)
+
+    retrieval_sources = []
+    extra_body = optimized_body.get("extra_body", {})
+    if isinstance(extra_body, dict):
+        retrieval_cfg = extra_body.get("retrieval", {})
+        docs = extra_body.get("context_docs", [])
+        if docs and user_content:
+            try:
+                retrieval_result = await proxy.bridge.build_retrieval_context(
+                    user_content,
+                    docs,
+                    RetrievalConfig(
+                        top_k=int(retrieval_cfg.get("top_k", RERANK_TOP_K)),
+                        chunking=ChunkingConfig(
+                            chunk_size=int(retrieval_cfg.get("chunk_size", DEFAULT_CHUNK_SIZE)),
+                            chunk_overlap=int(retrieval_cfg.get("chunk_overlap", DEFAULT_CHUNK_OVERLAP)),
+                            max_chunks=int(retrieval_cfg.get("max_chunks", 64)),
+                            max_chunk_chars=int(retrieval_cfg.get("max_chunk_chars", 1600)),
+                        ),
+                        include_sources=bool(retrieval_cfg.get("include_sources", True)),
+                        max_context_chars=int(retrieval_cfg.get("max_context_chars", 6000)),
+                    ),
+                )
+                retrieval_sources = retrieval_result.get("sources", [])
+            except Exception as exc:
+                logger.warning("responses_retrieval_metadata_failed", error=str(exc))
+
+    async with httpx.AsyncClient(timeout=None) as client:
+        try:
+            response = await client.post(
+                f"{proxy.lmstudio_base}/v1/chat/completions",
+                json=optimized_body,
+                headers={"Content-Type": "application/json"},
+            )
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.text)
+            result = response.json()
+            choices = result.get("choices") if isinstance(result, dict) else None
+            if choices and len(choices) > 0:
+                msg = choices[0].get("message", {})
+                content = msg.get("content", "") if isinstance(msg, dict) else ""
+                if content and isinstance(content, str):
+                    msg["content"] = proxy.router.format_output(content, domain)
+            return _completion_to_response(result, body, retrieval_sources=retrieval_sources)
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("responses_proxy_failed", error=str(e))
+            raise HTTPException(status_code=502, detail=f"LM Studio connection failed: {str(e)}")
 
 @app.post("/v1/chat/completions")
 async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
@@ -534,13 +929,110 @@ async def get_hardware_status():
     hw = await proxy.get_hardware()
     return hw.model_dump()
 
+
+@app.get("/v1/agent/sessions")
+async def list_agent_sessions():
+    return {"sessions": agent_orchestrator.list_sessions()}
+
+
+@app.post("/v1/agent/sessions")
+async def create_agent_session(body: dict):
+    workflow = str(body.get("workflow") or "coding_sprint")
+    tool_budget = int(body.get("tool_budget") or 6)
+    role_map = {
+        "main": _clean_env_model(body.get("main_model"), MAIN_MODEL),
+        "reasoning": _clean_env_model(body.get("reasoning_model"), REASONING_MODEL),
+        "embed": _clean_env_model(body.get("embed_model"), EMBED_MODEL),
+        "rerank": _clean_env_model(body.get("rerank_model"), RERANK_MODEL),
+    }
+    session = agent_orchestrator.create_session(
+        workflow=workflow,
+        role_map=role_map,
+        cwd=str(body.get("cwd") or Path.cwd()),
+        tool_budget=tool_budget,
+    )
+    return {"session_id": session.id, "status": "ready", "workflow": workflow}
+
+
+@app.post("/v1/agent/sessions/{session_id}/turn")
+async def agent_turn(session_id: str, body: dict):
+    return await agent_orchestrator.execute_turn(session_id, body)
+
+
+@app.post("/v1/agent/sessions/{session_id}/tool-result")
+async def agent_tool_result(session_id: str, body: dict):
+    return await agent_orchestrator.submit_tool_result(session_id, body.get("result") or body)
+
+
+@app.get("/v1/agent/sessions/{session_id}/state")
+async def agent_session_state(session_id: str):
+    return agent_orchestrator.get_session_state(session_id)
+
+
+@app.post("/v1/agent/sessions/{session_id}/checkpoint/{checkpoint_id}/restore")
+async def restore_agent_checkpoint(session_id: str, checkpoint_id: str):
+    return agent_orchestrator.restore_checkpoint(session_id, checkpoint_id)
+
+
+@app.post("/v1/agent/sessions/{session_id}/branch")
+async def branch_agent_session(session_id: str, body: dict):
+    checkpoint_id = str(body.get("from_checkpoint") or body.get("checkpoint_id") or "")
+    if not checkpoint_id:
+        raise HTTPException(status_code=400, detail="Missing checkpoint id")
+    return agent_orchestrator.branch_session(session_id, checkpoint_id)
+
+
+@app.post("/v1/agent/sessions/{session_id}/turn/stream")
+async def agent_turn_stream(session_id: str, body: dict):
+    async def event_stream():
+        try:
+            async for event in agent_orchestrator.execute_turn_stream(session_id, body):
+                yield f"event: {event['type']}\ndata: {json.dumps(event['data'])}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.get("/v1/ace/sessions")
+async def list_ace_sessions():
+    return {"sessions": ace_orchestrator.list_sessions()}
+
+
+@app.post("/v1/ace/generate")
+async def ace_generate(body: dict):
+    async def event_stream():
+        try:
+            async for event in ace_orchestrator.generate(body):
+                payload = {"session_id": event["session_id"], "data": event["data"], "continue": event["continue"]}
+                yield f"event: {event['type']}\ndata: {json.dumps(payload)}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'error': str(exc)})}\n\n"
+
+    headers = {"X-ACE-Version": "v3-active-context"}
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
+
+
+@app.post("/v1/ace/select-option")
+async def ace_select_option(body: dict):
+    session_id = str(body.get("session_id") or "")
+    option_id = str(body.get("option_id") or "")
+    if not session_id or not option_id:
+        raise HTTPException(status_code=400, detail="session_id and option_id are required")
+    selection = ace_orchestrator.record_selection(session_id, option_id, str(body.get("label") or ""))
+    return {"status": "selection_recorded", "session_id": session_id, "selection": selection}
+
+
+@app.get("/v1/ace/sessions/{session_id}/trace")
+async def get_ace_trace(session_id: str):
+    return ace_orchestrator.get_trace(session_id)
+
 @app.post("/api/v1/benchmark/{model_id}")
 async def benchmark_model(model_id: str, background_tasks: BackgroundTasks):
     """Run comprehensive benchmark through proxy (async background task)"""
     async def run_benchmark():
         bench = StreamingBenchmark(
             base_url=proxy.lmstudio_base,  # Test LM Studio directly
-            proxy_url=f"http://0.0.0.0:8080"  # Or test through self
+            proxy_url=f"http://127.0.0.1:8080"  # Or test through self
         )
         results = await bench.run_full_benchmark(model_id)
         # Store results somewhere or log them
@@ -583,47 +1075,36 @@ async def generate_preset(
     
     top_rec = recommendations[0]
     
-    # Generate preset JSON (LM Studio format)
-    preset = {
-        "identifier": f"@local:{model_id.replace('/', '-')}-{use_case}",
-        "name": f"{model_id} - {use_case.title()} (Auto)",
-        "changed": True,
-        "importedTimeStamp": int(time.time() * 1000),
-        "operation": {
-            "fields": [
-                {"key": "llm.prediction.temperature", "value": top_rec.temperature},
-                {"key": "llm.prediction.topPSampling", "value": {"checked": True, "value": top_rec.top_p}},
-                {"key": "llm.prediction.topKSampling", "value": {"checked": True, "value": top_rec.top_k}},
-                {"key": "llm.prediction.repeatPenalty", "value": {"checked": True, "value": top_rec.repeat_penalty}},
-            ]
-        },
-        "load": {
-            "fields": [
-                {"key": "llm.load.contextLength", "value": top_rec.context_length},
-                {"key": "llm.load.gpuOffload", "value": top_rec.gpu_layers},
-                {"key": "llm.load.flashAttention", "value": top_rec.flash_attention and (hw.cuda_compute or 0) >= 7.5},
-                {"key": "llm.load.useMmap", "value": top_rec.use_mmap},
-            ]
-        },
-        "hardware": {
-            "gpu": hw.gpu_name,
-            "vram_gb": hw.gpu_vram_gb,
-            "compute": hw.cuda_compute,
-            "is_maxwell": hw.cuda_compute is not None and hw.cuda_compute < 6.0
-        },
-        "recommendation": {
-            "quality_score": top_rec.quality_score,
-            "estimated_vram_gb": top_rec.estimated_vram_gb,
-            "backend": top_rec.inference_backend.value,
-            "quantization": top_rec.quantization.value
-        }
+    low_resource = (hw.gpu_vram_gb or 0) <= 8.5 or (hw.system_ram_gb or 0) <= 16.5
+    profile = {
+        "mode": "think" if top_rec.enable_thinking and not low_resource else "fast",
+        "embed_model": EMBED_MODEL,
+        "rerank_model": RERANK_MODEL,
+        "chunk_size": 700 if low_resource else 900,
+        "chunk_overlap": 100 if low_resource else 150,
+        "retrieval_top_k": 3 if low_resource else RERANK_TOP_K,
+        "max_context_chars": 2400 if low_resource else 6000,
     }
+    hardware_meta = {
+        "gpu": hw.gpu_name,
+        "vram_gb": hw.gpu_vram_gb,
+        "compute": hw.cuda_compute,
+        "ram_gb": hw.system_ram_gb,
+        "is_maxwell": hw.cuda_compute is not None and hw.cuda_compute < 6.0,
+    }
+    preset = ConfigExporter.build_preset_dict(
+        top_rec,
+        profile=profile,
+        hardware=hardware_meta,
+        name=f"{model_id} - {use_case.title()} (Auto)",
+        identifier=f"@local:{model_id.replace('/', '-')}-{use_case}",
+    )
     
     # Save to presets folder
-    presets_dir = Path.home() / ".cache" / "lm-studio" / "presets"
+    presets_dir = Path.home() / ".cache" / "lm-studio" / "config-presets"
     presets_dir.mkdir(parents=True, exist_ok=True)
     
-    filename = f"{model_id.replace('/', '_')}_{use_case}.json"
+    filename = f"{model_id.replace('/', '_')}_{use_case}.preset.json"
     filepath = presets_dir / filename
     
     with open(filepath, 'w') as f:
@@ -654,6 +1135,6 @@ async def list_presets():
 
 if __name__ == "__main__":
     import uvicorn
-    host = os.getenv("BRIDGE_HOST", "0.0.0.0")
-    port = int(os.getenv("BRIDGE_PORT", "8080"))
+    host = _clean_bridge_host(os.getenv("BRIDGE_HOST", "127.0.0.1"))
+    port = _clean_bridge_port(os.getenv("BRIDGE_PORT", "8080"))
     uvicorn.run(app, host=host, port=port)

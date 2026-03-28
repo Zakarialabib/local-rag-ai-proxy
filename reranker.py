@@ -7,7 +7,7 @@ import structlog
 logger = structlog.get_logger()
 
 LMSTUDIO_BASE = "http://192.168.1.12:1234"
-DEFAULT_RERANK_MODEL = "bge-reranker-v2-m3"
+DEFAULT_RERANK_MODEL = "qwen3-reranker-0.6b"
 
 MODEL_DIR = os.path.join(os.path.expanduser("~"), ".cache", "lm-studio", "models")
 
@@ -97,20 +97,31 @@ class LMStudioReranker:
         try:
             import httpx
             async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    f"{self.base_url}/v1/rerank",
-                    json={
-                        "model": self.model_id,
-                        "query": query,
-                        "documents": chunks,
-                        "top_k": top_k
-                    }
-                )
-                if resp.status_code == 200:
+                for path in ("/v1/rerank", "/api/v1/rerank", "/rerank"):
+                    resp = await client.post(
+                        f"{self.base_url}{path}",
+                        json={
+                            "model": self.model_id,
+                            "query": query,
+                            "documents": chunks,
+                            "top_k": top_k
+                        }
+                    )
+                    if resp.status_code != 200:
+                        continue
                     data = resp.json()
                     results = data.get("results", data) if isinstance(data, dict) else data
-                    return [{"chunk": r.get("document", ""), "score": float(r.get("relevance_score", 0))} for r in results]
-                logger.warning("rerank_http_failed", status=resp.status_code)
+                    if isinstance(results, list):
+                        normalized = []
+                        for index, item in enumerate(results):
+                            if isinstance(item, dict):
+                                normalized.append({
+                                    "chunk": item.get("document") or item.get("text") or item.get("chunk") or chunks[index],
+                                    "score": float(item.get("relevance_score", item.get("score", 0))),
+                                })
+                        if normalized:
+                            return normalized[:top_k]
+                logger.warning("rerank_http_failed", model=self.model_id)
                 return [{"chunk": c, "score": 0.0} for c in chunks[:top_k]]
         except Exception as e:
             logger.error("lmstudio_rerank_failed", error=str(e))

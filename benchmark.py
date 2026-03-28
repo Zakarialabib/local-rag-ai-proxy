@@ -30,7 +30,7 @@ class ModelCapabilities:
 
 class StreamingBenchmark:
     def __init__(self, 
-                 base_url: str = "http://0.0.0.0:8080", 
+                 base_url: str = "http://127.0.0.1:8080", 
                  timeout: int = 60, 
                  proxy_url: Optional[str] = None):
         self.base_url = base_url
@@ -453,6 +453,97 @@ class StreamingBenchmark:
             }
         }
 
+    async def create_agent_session(self, workflow: str = "coding_sprint") -> Dict[str, Any]:
+        async with self.get_client() as client:
+            response = await client.post(
+                f"{self.base_url}/v1/agent/sessions",
+                json={"workflow": workflow, "tool_budget": 4},
+            )
+            if response.status_code != 200:
+                return {"ok": False, "error": response.text, "status_code": response.status_code}
+            data = response.json()
+            return {"ok": True, "session_id": data.get("session_id"), "raw": data}
+
+    async def benchmark_agent_turn(self, session_id: str, content: str) -> Dict[str, Any]:
+        started = time.time()
+        async with self.get_client() as client:
+            response = await client.post(
+                f"{self.base_url}/v1/agent/sessions/{session_id}/turn",
+                json={"input": {"type": "user_request", "content": content}},
+            )
+            duration_ms = round((time.time() - started) * 1000, 2)
+            if response.status_code != 200:
+                return {"ok": False, "status_code": response.status_code, "error": response.text, "duration_ms": duration_ms}
+            data = response.json()
+            return {
+                "ok": True,
+                "duration_ms": duration_ms,
+                "next_agent": data.get("state_update", {}).get("next_agent"),
+                "checkpoint": data.get("state_update", {}).get("checkpoint_created"),
+                "tool_actions": len([a for a in data.get("turn_result", {}).get("actions", []) if a.get("type") == "tool_call"]),
+                "agent": data.get("turn_result", {}).get("agent"),
+                "raw": data,
+            }
+
+    async def validate_agent_workflow(self, workflow: str = "coding_sprint") -> Dict[str, Any]:
+        session = await self.create_agent_session(workflow)
+        if not session.get("ok"):
+            return {"ok": False, "stage": "create_session", "error": session.get("error")}
+        session_id = session.get("session_id")
+        turn = await self.benchmark_agent_turn(session_id, "Inspect the workspace and propose the next safe step.")
+        if not turn.get("ok"):
+            return {"ok": False, "stage": "turn", "error": turn.get("error"), "session_id": session_id}
+        async with self.get_client() as client:
+            state_response = await client.get(f"{self.base_url}/v1/agent/sessions/{session_id}/state")
+            branch_response = await client.post(
+                f"{self.base_url}/v1/agent/sessions/{session_id}/branch",
+                json={"checkpoint_id": turn.get("checkpoint")},
+            )
+        return {
+            "ok": state_response.status_code == 200 and branch_response.status_code == 200,
+            "session_id": session_id,
+            "turn": turn,
+            "state_status": state_response.status_code,
+            "branch_status": branch_response.status_code,
+        }
+
+    async def validate_ace_workflow(self, prompt: str = "Inspect the repo and propose a concise next implementation step.") -> Dict[str, Any]:
+        async with self.get_client() as client:
+            async with client.stream(
+                "POST",
+                f"{self.base_url}/v1/ace/generate",
+                json={"prompt": prompt, "mode": "think", "docs": ["README.md"]},
+            ) as response:
+                if response.status_code != 200:
+                    return {"ok": False, "stage": "generate", "status_code": response.status_code, "error": (await response.aread()).decode("utf-8", errors="ignore")}
+                session_id = ""
+                events: List[str] = []
+                current_event = ""
+                async for line in response.aiter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("event: "):
+                        current_event = line[7:].strip()
+                        events.append(current_event)
+                        if current_event == "final_output" and session_id:
+                            break
+                        continue
+                    if line.startswith("data: "):
+                        try:
+                            payload = json.loads(line[6:])
+                            session_id = payload.get("session_id", session_id)
+                        except Exception:
+                            pass
+                if not session_id:
+                    return {"ok": False, "stage": "stream", "error": "missing_session_id", "events": events}
+            trace_response = await client.get(f"{self.base_url}/v1/ace/sessions/{session_id}/trace")
+        return {
+            "ok": trace_response.status_code == 200,
+            "session_id": session_id,
+            "events": events,
+            "trace_status": trace_response.status_code,
+        }
+
     async def run_full_benchmark(self, model_id: str, prompt_key: str = "code"):
         """Complete benchmark suite"""
         print(f"\n🔬 Benchmarking {model_id}")
@@ -566,10 +657,18 @@ class StreamingBenchmark:
         
         print("\n" + "=" * 60)
 
+        print("\n🤖 Agent Workflow Validation...")
+        agent_validation = await self.validate_agent_workflow("coding_sprint")
+        print(json.dumps(agent_validation, indent=2))
+        print("\n🧠 ACE Workflow Validation...")
+        ace_validation = await self.validate_ace_workflow()
+        print(json.dumps(ace_validation, indent=2))
+        print("\n" + "=" * 60)
+
 # Usage
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default=os.getenv("LMSTUDIO_BASE_URL", "http://192.168.1.12:1234"))
+    parser.add_argument("--base-url", default=os.getenv("LMSTUDIO_BASE_URL", "http://"))
     parser.add_argument("--model", default=os.getenv("MODEL_ID", "qwen3.5-4b"))
     parser.add_argument("--prompt", default=os.getenv("PROMPT_KEY", "code"))
     parser.add_argument("--list-models", action="store_true")

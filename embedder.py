@@ -2,11 +2,12 @@ import httpx
 import numpy as np
 from typing import List, Optional
 import structlog
+from lmstudio_embedder import LMStudioPythonEmbedder
 
 logger = structlog.get_logger()
 
-LMSTUDIO_BASE = "http://192.168.1.12:1234"
-DEFAULT_EMBED_MODEL = "nomic-embed-text-v1.5"
+LMSTUDIO_BASE = "http://"
+DEFAULT_EMBED_MODEL = "text-embedding-qwen3-embedding-4b"
 
 
 def cosine_score(a: List[float], b: List[float]) -> float:
@@ -20,30 +21,49 @@ def cosine_score(a: List[float], b: List[float]) -> float:
 
 
 class Embedder:
-    def __init__(self, base_url: str = LMSTUDIO_BASE, model: str = DEFAULT_EMBED_MODEL):
+    def __init__(self, base_url: str = LMSTUDIO_BASE, model: str = DEFAULT_EMBED_MODEL, add_eos_token: bool = True):
         self.base_url = base_url.rstrip("/")
         self.model = model
+        self.add_eos_token = add_eos_token
+        # Extract host:port for Python API
+        host_port = base_url.replace("http://", "").replace("https://", "").rstrip("/")
+        self.python_embedder = LMStudioPythonEmbedder(
+            lmstudio_address=host_port,
+            model_name=model,
+            add_eos_token=add_eos_token,
+        )
 
     async def embed(self, texts: List[str]) -> List[List[float]]:
         if not texts:
             return []
+        
+        # Try Python API first (with EOS support)
+        try:
+            embeddings = await self.python_embedder.embed(texts, add_eos=self.add_eos_token)
+            if embeddings:
+                return embeddings
+        except Exception as e:
+            logger.debug("python_api_embed_fallback", error=str(e))
+        
+        # Fallback to HTTP API
         try:
             async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    f"{self.base_url}/v1/embeddings",
-                    json={"input": texts, "model": self.model}
-                )
-                if resp.status_code != 200:
-                    logger.error("embed_http_error", status=resp.status_code, body=resp.text)
-                    return []
-                data = resp.json()
-                items = data.get("data", data)
-                if isinstance(items, list) and len(items) > 0:
-                    first = items[0]
-                    if isinstance(first, dict) and "embedding" in first:
-                        return [item["embedding"] for item in items]
-                    elif isinstance(first, list):
-                        return items
+                for path in ("/v1/embeddings", "/api/v1/embeddings", "/embeddings"):
+                    resp = await client.post(
+                        f"{self.base_url}{path}",
+                        json={"input": texts, "model": self.model}
+                    )
+                    if resp.status_code != 200:
+                        continue
+                    data = resp.json()
+                    items = data.get("data", data) if isinstance(data, dict) else data
+                    if isinstance(items, list) and len(items) > 0:
+                        first = items[0]
+                        if isinstance(first, dict) and "embedding" in first:
+                            return [item["embedding"] for item in items]
+                        if isinstance(first, list):
+                            return items
+                logger.error("embed_http_error", model=self.model, body="No compatible embeddings endpoint succeeded")
                 return []
         except Exception as e:
             logger.error("embed_failed", error=str(e))
