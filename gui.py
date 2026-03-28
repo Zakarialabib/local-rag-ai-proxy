@@ -78,10 +78,10 @@ class LMStudioAgentConsole(ctk.CTk):
         self.request_counts = {}
 
         self.model_roles = {
-            "main": self._clean_model_id(os.getenv("MAIN_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")),
-            "reasoning": self._clean_model_id(os.getenv("REASONING_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")),
+            "main": self._clean_model_id(os.getenv("MAIN_MODEL", "qwen3.5-4b")),
+            "reasoning": self._clean_model_id(os.getenv("REASONING_MODEL", "qwen3.5-4b")),
             "embed": self._clean_model_id(os.getenv("EMBED_MODEL", "text-embedding-qwen3-embedding-4b")),
-            "rerank": self._clean_model_id(os.getenv("RERANK_MODEL", "qwen3-reranker-0.6b")),
+            "rerank": self._clean_model_id(os.getenv("RERANK_MODEL", "qwen.qwen3-reranker-4b")),
         }
         self.role_vars = {}
 

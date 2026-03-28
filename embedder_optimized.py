@@ -15,7 +15,7 @@ import structlog
 
 logger = structlog.get_logger()
 
-LMSTUDIO_BASE = "http://127.0.0.1:1234"
+LMSTUDIO_BASE = "http://192.168.1.12:1234"
 DEFAULT_EMBED_MODEL = "text-embedding-qwen3-embedding-4b"
 
 # Task-specific instructions (from Qwen3 documentation)

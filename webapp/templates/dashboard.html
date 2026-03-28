@@ -1,235 +1,421 @@
 {% extends "base.html" %}
 {% block body %}
+<!-- Lucide Icons & Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {
-        --bg-main: #0a0a0f;
-        --bg-sidebar: rgba(15, 15, 23, 0.85);
-        --bg-card: rgba(22, 22, 33, 0.6);
-        --bg-input: rgba(30, 30, 45, 0.5);
-        
-        --glass-border: rgba(255, 255, 255, 0.05);
-        --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        
-        --text-primary: #ffffff;
+        --bg-main: #050508;
+        --bg-sidebar: rgba(10, 10, 18, 0.98);
+        --bg-card: rgba(20, 20, 30, 0.4);
+        --bg-input: rgba(25, 25, 40, 0.6);
+
+        --glass-border: rgba(255, 255, 255, 0.08);
+        --glass-shadow: 0 20px 50px 0 rgba(0, 0, 0, 0.6);
+
+        --text-primary: #f8fafc;
         --text-secondary: #94a3b8;
-        --text-muted: #64748b;
-        
+        --text-muted: #475569;
+
         --accent-primary: #3b82f6;
-        --accent-glow: rgba(59, 130, 246, 0.5);
+        --accent-glow: rgba(59, 130, 246, 0.3);
         --accent-secondary: #8b5cf6;
         --accent-success: #10b981;
         --accent-warning: #f59e0b;
         --accent-error: #ef4444;
-        
-        --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+        --font-sans: 'Plus Jakarta Sans', -apple-system, sans-serif;
         --font-mono: 'JetBrains Mono', monospace;
+
+        --sidebar-width: 260px;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-font-smoothing: antialiased;
+    }
 
-    body {
+    .dashboard-wrapper {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
         font-family: var(--font-sans);
-        background: radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
-                    radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%),
-                    var(--bg-main);
+        background: radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.12), transparent 40%),
+            radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1), transparent 40%),
+            var(--bg-main);
         color: var(--text-primary);
         display: flex;
-        height: 100vh;
         overflow: hidden;
     }
 
-    /* Glassmorphism Classes */
+    /* Premium Glassmorphism */
     .glass {
         background: var(--bg-card);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
         border: 1px solid var(--glass-border);
         box-shadow: var(--glass-shadow);
-        border-radius: 16px;
+        border-radius: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .glass::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 40%);
+        border-radius: inherit;
     }
 
     .glass-input {
         background: var(--bg-input);
         border: 1px solid var(--glass-border);
         color: var(--text-primary);
-        border-radius: 12px;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 14px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         font-family: var(--font-sans);
+        padding: 12px 16px;
     }
-    
+
     .glass-input:focus {
         outline: none;
         border-color: var(--accent-primary);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-        background: rgba(30, 30, 45, 0.8);
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        background: rgba(30, 30, 45, 0.9);
     }
 
-    /* Scrollbars */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    /* Removed empty wrapper class */
 
-    /* Layout */
+    /* Sidebar Refined */
     .sidebar {
-        width: 280px;
+        width: var(--sidebar-width);
         background: var(--bg-sidebar);
-        backdrop-filter: blur(20px);
         border-right: 1px solid var(--glass-border);
         display: flex;
         flex-direction: column;
-        z-index: 50;
+        z-index: 100;
     }
 
     .brand {
-        padding: 24px;
-        background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-        border-bottom: 1px solid var(--glass-border);
-    }
-    .brand h1 {
-        font-size: 22px;
-        font-weight: 700;
-        background: linear-gradient(90deg, #fff, var(--text-secondary));
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -0.5px;
+        padding: 32px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
-    .nav-container { flex: 1; overflow-y: auto; padding: 16px 12px; }
-    
+    .brand h1 {
+        font-size: 20px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .brand h1 i {
+        color: var(--accent-primary);
+        font-size: 22px;
+    }
+
+    .brand span {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        color: var(--text-muted);
+        font-weight: 800;
+    }
+
+    .nav-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+    }
+
+    .nav-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-muted);
+        font-weight: 800;
+        margin: 24px 16px 8px;
+    }
+
     .nav-item {
-        padding: 12px 16px;
-        margin-bottom: 8px;
-        border-radius: 12px;
+        padding: 10px 16px;
+        margin-bottom: 4px;
+        border-radius: 14px;
         cursor: pointer;
         display: flex;
         align-items: center;
         gap: 12px;
-        font-weight: 500;
+        font-size: 14px;
+        font-weight: 600;
         color: var(--text-secondary);
-        transition: all 0.2s ease;
-        position: relative;
-        overflow: hidden;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    
+
+    .nav-item i {
+        font-size: 16px;
+        width: 20px;
+        opacity: 0.6;
+    }
+
     .nav-item:hover {
         background: rgba(255, 255, 255, 0.05);
         color: var(--text-primary);
-    }
-    
-    .nav-item.active {
-        background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), transparent);
-        color: #fff;
-        border: 1px solid rgba(59, 130, 246, 0.2);
-    }
-    
-    .nav-item.active::before {
-        content: '';
-        position: absolute;
-        left: 0; top: 0; bottom: 0;
-        width: 3px;
-        background: var(--accent-primary);
-        box-shadow: 0 0 10px var(--accent-glow);
+        transform: translateX(4px);
     }
 
+    .nav-item.active {
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-primary);
+        border-left: 2px solid var(--accent-primary);
+        border-radius: 0 14px 14px 0;
+        margin-left: -12px;
+        padding-left: 26px;
+    }
+
+    .nav-item.active i {
+        opacity: 1;
+    }
+
+    .sidebar-footer {
+        padding: 24px;
+        border-top: 1px solid var(--glass-border);
+        background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* Main Content */
     .main-content {
         flex: 1;
-        position: relative;
         overflow-y: auto;
-        padding: 32px;
-        /* Custom scrollbar matching container */
+        padding: 48px;
+        background: radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.03), transparent 30%);
     }
 
     .view-section {
         display: none;
-        animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        max-width: 1400px;
+        animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        max-width: 1200px;
         margin: 0 auto;
     }
-    
-    .view-section.active { display: block; }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+
+    .view-section.active {
+        display: block;
     }
 
-    /* Common Components */
-    .page-title {
-        font-size: 32px;
-        font-weight: 600;
-        margin-bottom: 24px;
-        letter-spacing: -0.5px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
-    .grid-1 { display: grid; grid-template-columns: 1fr; gap: 24px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
-    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
-    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
-    .grid-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 24px; }
-
-    .card-header {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 16px;
+    /* Page Elements */
+    .header-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 48px;
+    }
+
+    .page-title h2 {
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -1.5px;
+    }
+
+    .page-title p {
+        color: var(--text-secondary);
+        font-size: 15px;
+        margin-top: 6px;
+    }
+
+    .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 32px;
+    }
+
+    .grid-12 {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 32px;
+    }
+
+    /* Cards */
+    .stat-card {
+        padding: 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .stat-card .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: rgba(59, 130, 246, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent-primary);
+        font-size: 20px;
+    }
+
+    .stat-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stat-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .stat-value {
+        font-size: 18px;
+        font-weight: 700;
         color: var(--text-primary);
+        margin-top: 6px;
+        font-family: var(--font-mono);
     }
 
     /* Buttons */
     .btn {
-        padding: 10px 18px;
-        border-radius: 10px;
-        font-weight: 500;
+        padding: 14px 28px;
+        border-radius: 16px;
+        font-weight: 700;
         font-size: 14px;
         cursor: pointer;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        font-family: var(--font-sans);
+        gap: 12px;
         border: none;
     }
-    
+
     .btn-primary {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
-        box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.39);
-    }
-    
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
-    }
-    
-    .btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text-primary);
-    }
-    
-    .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 12px 24px -6px rgba(59, 130, 246, 0.5);
     }
 
-    /* Custom Elements */
-    .stat-value {
-        font-size: 28px;
-        font-weight: 700;
-        background: linear-gradient(to right, #fff, #94a3b8);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        line-height: 1.2;
+    .btn-primary:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 20px 40px -8px rgba(59, 130, 246, 0.6);
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        color: var(--text-primary);
+        backdrop-filter: blur(12px);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Playground */
+    .playground-container {
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 32px;
+        height: calc(100vh - 240px);
+    }
+
+    .chat-box {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .message-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 32px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 28px;
+        margin-bottom: 24px;
+        border: 1px solid var(--glass-border);
+    }
+
+    .input-area {
+        display: flex;
+        gap: 16px;
+    }
+
+    .message {
+        margin-bottom: 32px;
+        max-width: 80%;
+    }
+
+    .message.user {
+        align-self: flex-end;
+        margin-left: auto;
+    }
+
+    .message-content {
+        padding: 18px 24px;
+        border-radius: 24px;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+    .message.user .message-content {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: white;
+        border-bottom-right-radius: 4px;
+        box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
+    }
+
+    .message.bot .message-content {
+        background: var(--bg-card);
+        border: 1px solid var(--glass-border);
+        border-bottom-left-radius: 4px;
+    }
+
+    .settings-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        overflow-y: auto;
+    }
+
+    .form-label {
+        font-size: 11px;
+        font-weight: 800;
+        color: var(--text-muted);
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
     .progress-bar {
@@ -237,596 +423,639 @@
         background: rgba(255, 255, 255, 0.05);
         border-radius: 3px;
         overflow: hidden;
-        margin-top: 8px;
-    }
-    
-    .progress-fill {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.5s ease;
     }
 
-    .badge {
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
+    .progress-fill {
+        height: 100%;
+        transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .console-output {
         font-family: var(--font-mono);
-        font-size: 13px;
-        line-height: 1.5;
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.4);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.03);
-        color: #a78bfa;
-        max-height: 400px;
+        font-size: 12px;
+        line-height: 1.6;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: #f1f5f9;
         overflow-y: auto;
     }
 
     .timeline {
         position: relative;
-        padding-left: 24px;
+        padding-left: 28px;
     }
+
     .timeline::before {
         content: '';
         position: absolute;
-        left: 7px; top: 0; bottom: 0;
-        width: 2px;
-        background: rgba(255,255,255,0.05);
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: var(--glass-border);
     }
+
     .timeline-item {
         position: relative;
-        margin-bottom: 24px;
+        margin-bottom: 32px;
     }
+
     .timeline-item::before {
         content: '';
         position: absolute;
-        left: -22px; top: 6px;
-        width: 12px; height: 12px;
+        left: -32.5px;
+        top: 6px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: var(--accent-primary);
-        box-shadow: 0 0 10px var(--accent-glow);
+        box-shadow: 0 0 12px var(--accent-primary);
     }
 
-    /* Forms */
-    .form-group { margin-bottom: 16px; }
-    .form-label {
-        display: block;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-secondary);
-        margin-bottom: 6px;
+    .badge {
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    .form-control {
-        width: 100%;
-        padding: 12px 14px;
-        font-size: 14px;
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
     }
-    textarea.form-control { min-height: 120px; resize: vertical; }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
 </style>
 
-<div class="sidebar">
-    <div class="brand">
-        <h1>Proxy Core <span style="font-weight: 300; color: var(--accent-primary);">UI</span></h1>
-        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Intelligence Orchestrator</p>
+<div class="dashboard-wrapper">
+    <div class="sidebar">
+        <div class="brand">
+            <h1><i class="fas fa-microchip"></i> Proxy Core</h1>
+            <span>Intelligence Orchestrator</span>
+        </div>
+
+        <div class="nav-container">
+            <div class="nav-label">Main</div>
+            <div class="nav-item active" onclick="switchView('overview', this)">
+                <i class="fas fa-th-large"></i> Overview
+            </div>
+            <div class="nav-item" onclick="switchView('playground', this)">
+                <i class="fas fa-flask"></i> Inference Lab
+            </div>
+
+            <div class="nav-label">Engine</div>
+            <div class="nav-item" onclick="switchView('context', this)">
+                <i class="fas fa-brain"></i> Context Engine
+            </div>
+            <div class="nav-item" onclick="switchView('sessions', this)">
+                <i class="fas fa-history"></i> Session Viewer
+            </div>
+
+            <div class="nav-label">System</div>
+            <div class="nav-item" onclick="switchView('presets', this)">
+                <i class="fas fa-tags"></i> Preset Manager
+            </div>
+            <div class="nav-item" onclick="switchView('settings', this)">
+                <i class="fas fa-sync"></i> System Sync
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div id="status-dot"
+                    style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); box-shadow: 0 0 10px var(--accent-success);">
+                </div>
+                <div style="font-size: 12px; font-weight: 700;">Proxy Online</div>
+            </div>
+        </div>
     </div>
-    
-    <div class="nav-container">
-        <div class="nav-item active" onclick="switchView('overview', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            Overview
-        </div>
-        <div class="nav-item" onclick="switchView('playground', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 5 18 3-9h5"/></svg>
-            Inference Lab
-        </div>
-        <div class="nav-item" onclick="switchView('context', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Context Engine
-        </div>
-        <div class="nav-item" onclick="switchView('sessions', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Session Viewer
-        </div>
-        <div class="nav-item" onclick="switchView('presets', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            Preset Manager
-        </div>
-        <div class="nav-item" onclick="switchView('settings', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            System Sync
-        </div>
-    </div>
-</div>
 
-<div class="main-content">
+    <div class="main-content">
 
-    <!-- OVERVIEW -->
-    <div id="view-overview" class="view-section active">
-        <h2 class="page-title">Intelligence Overview</h2>
-        
-        <div class="grid-4 mb-8" style="margin-bottom: 24px;">
-            <div class="glass" style="padding: 20px;">
-                <div class="form-label">Main Inference</div>
-                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.main|truncate(20)|default('Not Loaded') }}</div>
+        <!-- OVERVIEW -->
+        <div id="view-overview" class="view-section active">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Intelligence Overview</h2>
+                    <p>Distributed model routing and hardware utilization metrics.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="refreshHardware()">
+                    <i class="fas fa-redo-alt"></i> Rediscover Hardware
+                </button>
             </div>
-            <div class="glass" style="padding: 20px;">
-                <div class="form-label">System Reasoning</div>
-                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.reasoning|truncate(20)|default('Not Loaded') }}</div>
-            </div>
-            <div class="glass" style="padding: 20px;">
-                <div class="form-label">Vector Embeddings</div>
-                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.embed|truncate(20)|default('Not Loaded') }}</div>
-            </div>
-            <div class="glass" style="padding: 20px;">
-                <div class="form-label">Semantic Reranker</div>
-                <div class="stat-value" style="font-size: 20px; margin-top: 8px;">{{ dashboard.state.role_map.rerank|truncate(20)|default('Not Loaded') }}</div>
-            </div>
-        </div>
 
-        <div class="grid-12">
-            <div class="glass" style="grid-column: span 8; padding: 24px;">
-                <div class="card-header">Hardware Utilization</div>
-                <div class="grid-3" style="margin-top: 20px;">
-                    <div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span class="form-label">GPU VRAM</span>
-                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-primary);">
-                                {{ hardware.vram_used_gb|round(1)|default(0) }} / {{ hardware.vram_total_gb|round(1)|default(1) }} GB
-                            </span>
+            <div class="grid-4" style="margin-bottom: 32px;">
+                <div class="glass stat-card">
+                    <div class="icon-box"><i class="fas fa-terminal"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Main Inference</span>
+                        <span class="stat-value" id="role-main">{{
+                            dashboard.state.role_map.main|truncate(22)|default('Disconnected') }}</span>
+                    </div>
+                </div>
+                <div class="glass stat-card">
+                    <div class="icon-box" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-secondary);">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Reasoning Engine</span>
+                        <span class="stat-value" id="role-reasoning">{{
+                            dashboard.state.role_map.reasoning|truncate(22)|default('Disconnected') }}</span>
+                    </div>
+                </div>
+                <div class="glass stat-card">
+                    <div class="icon-box" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-success);"><i
+                            class="fas fa-database"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Embeddings</span>
+                        <span class="stat-value" id="role-embed">{{
+                            dashboard.state.role_map.embed|truncate(22)|default('Disconnected') }}</span>
+                    </div>
+                </div>
+                <div class="glass stat-card">
+                    <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-warning);"><i
+                            class="fas fa-bolt"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">Active Tasks</span>
+                        <span class="stat-value" id="active-tasks">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-12">
+                <div class="glass" style="grid-column: span 8; padding: 40px;">
+                    <div class="card-header">
+                        <span>Hardware Performance</span>
+                        <div class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">
+                            Live Feed</div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 32px; margin-top: 32px;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-memory"></i>
+                                    Dedicated VRAM</span>
+                                <span id="gauge-vram"
+                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-primary);">
+                                    {{ dashboard.hardware.vram_used_gb|default(0)|round(1) }} / {{
+                                    dashboard.hardware.vram_total_gb|default(1)|round(1) }} GB
+                                </span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="fill-vram" class="progress-fill"
+                                    style="background: var(--accent-primary); width: {{ (dashboard.hardware.vram_used_gb|default(0) / (dashboard.hardware.vram_total_gb or 1) * 100)|int }}%">
+                                </div>
+                            </div>
                         </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="background: linear-gradient(90deg, #3b82f6, #60a5fa); width: {{ (hardware.vram_used_gb / (hardware.vram_total_gb or 1) * 100)|default(0)|int }}%"></div>
+
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-microchip"></i>
+                                    System Memory</span>
+                                <span id="gauge-ram"
+                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-secondary);">
+                                    {{ dashboard.hardware.ram_used_gb|default(0)|round(1) }} / {{
+                                    dashboard.hardware.ram_total_gb|default(1)|round(1) }} GB
+                                </span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="fill-ram" class="progress-fill"
+                                    style="background: var(--accent-secondary); width: {{ (dashboard.hardware.ram_used_gb|default(0) / (dashboard.hardware.ram_total_gb or 1) * 100)|int }}%">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-cpu"></i> CPU
+                                    Compute</span>
+                                <span id="gauge-cpu"
+                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-success);">
+                                    {{ dashboard.hardware.cpu_percent|default(0)|int }}%
+                                </span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="fill-cpu" class="progress-fill"
+                                    style="background: var(--accent-success); width: {{ dashboard.hardware.cpu_percent|default(0)|int }}%">
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span class="form-label">System RAM</span>
-                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-secondary);">
-                                {{ hardware.ram_used_gb|round(1)|default(0) }} / {{ hardware.ram_total_gb|round(1)|default(1) }} GB
-                            </span>
+
+                    <div class="card-header" style="margin-top: 48px;">Live System Log</div>
+                    <div id="live-console" class="console-output" style="height: 220px; margin-top: 16px;"></div>
+                </div>
+
+                <div class="glass" style="grid-column: span 4; padding: 40px;">
+                    <div class="card-header">Infrastructure Pulse</div>
+                    <div id="health-timeline" class="timeline" style="margin-top: 32px;">
+                        <div class="timeline-item">
+                            <div style="font-size: 14px; font-weight: 700;">Proxy Initialized</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Node: {{
+                                dashboard.state.bridge_base }}</div>
                         </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="background: linear-gradient(90deg, #8b5cf6, #a78bfa); width: {{ (hardware.ram_used_gb / (hardware.ram_total_gb or 1) * 100)|default(0)|int }}%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span class="form-label">CPU Nodes</span>
-                            <span style="font-family: var(--font-mono); font-size: 13px; color: var(--accent-success);">
-                                {{ hardware.cpu_percent|default(0)|int }}%
-                            </span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="background: linear-gradient(90deg, #10b981, #34d399); width: {{ hardware.cpu_percent|default(0)|int }}%"></div>
+                        <div class="timeline-item">
+                            <div style="font-size: 14px; font-weight: 700;">Catalog Synced</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">{{
+                                dashboard.models|length }} models ready</div>
                         </div>
                     </div>
                 </div>
-                
-                <div class="card-header" style="margin-top: 32px;">Active Sessions Overview</div>
-                <div style="margin-top: 16px;">
-                    {% if dashboard.ace_sessions|length == 0 and dashboard.agent_sessions|length == 0 %}
-                    <div style="text-align: center; padding: 30px; color: var(--text-muted); border: 1px dashed var(--glass-border); border-radius: 12px;">
-                        No active ACE or Agent sessions running.
+            </div>
+        </div>
+
+        <!-- INFERENCE LAB -->
+        <div id="view-playground" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Inference Lab</h2>
+                    <p>Hardware-aware model playground and prompt engineering.</p>
+                </div>
+                <div style="display: flex; gap: 16px;">
+                    <button class="btn btn-secondary" onclick="clearPlayground()"><i class="fas fa-eraser"></i>
+                        Clear</button>
+                    <button class="btn btn-primary" onclick="runInference()"><i class="fas fa-play"></i>
+                        Execute</button>
+                </div>
+            </div>
+
+            <div class="playground-container">
+                <div class="chat-box">
+                    <div class="message-area" id="inference-history">
+                        <div class="message bot">
+                            <div class="message-content">
+                                System ready. Define your system instructions and start an inference session.
+                            </div>
+                        </div>
                     </div>
-                    {% else %}
-                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                        {% for s in dashboard.ace_sessions[:3] %}
-                        <div class="glass-input" style="padding: 12px; flex: 1; min-width: 200px;">
-                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">ACE Session</div>
-                            <div style="font-weight: 500;">{{ s.agent_name|default('Unknown') }}</div>
-                            <div style="font-family: var(--font-mono); font-size: 11px; color: var(--accent-success); margin-top: 8px;">{{ s.status|default('active') }}</div>
+                    <div class="input-area">
+                        <input type="text" id="inference-query" class="glass-input" style="flex: 1;"
+                            placeholder="Send a message..." onkeypress="if(event.key === 'Enter') runInference()">
+                        <button class="btn btn-primary" onclick="runInference()"><i
+                                class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+
+                <div class="settings-panel glass" style="padding: 28px;">
+                    <div class="nav-label" style="margin: 0 0 16px 0;">Model Selector</div>
+
+                    <div class="form-group">
+                        <label class="form-label">Active Role</label>
+                        <select id="inference-role" class="glass-input" style="width: 100%;">
+                            <option value="main">Main Core</option>
+                            <option value="reasoning">Reasoning Engine</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Processing Strategy</label>
+                        <select id="inference-mode" class="glass-input" style="width: 100%;">
+                            <option value="direct">Fast Completion</option>
+                            <option value="reason">Reasoning Chain</option>
+                            <option value="rag">Context Augmented</option>
+                        </select>
+                    </div>
+
+                    <div class="nav-label" style="margin: 24px 0 16px 0;">Parameters</div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between;">
+                            <label class="form-label">Temperature</label>
+                            <span id="temp-val" style="font-size: 13px; color: var(--accent-primary);">0.7</span>
+                        </div>
+                        <input type="range" id="param-temp" min="0" max="1.5" step="0.1" value="0.7"
+                            style="width: 100%;" oninput="byId('temp-val').innerText = this.value">
+                    </div>
+
+                    <div class="form-group" style="margin-top: auto;">
+                        <label class="form-label">System Context</label>
+                        <textarea id="inference-system" class="glass-input"
+                            style="width: 100%; min-height: 140px; font-size: 13px;"
+                            placeholder="System persona..."></textarea>
+                    </div>
+
+                    <div class="grid-2" style="margin-top: 12px;">
+                        <button class="btn btn-secondary" style="padding: 10px;"
+                            onclick="setSystemPreset('Developer')">Dev</button>
+                        <button class="btn btn-secondary" style="padding: 10px;"
+                            onclick="setSystemPreset('Analyst')">Analyst</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTEXT ENGINE -->
+        <div id="view-context" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Context Engineering</h2>
+                    <p>Algorithmic pruning and TF-IDF memory optimization.</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 60px; text-align: center; color: var(--text-secondary);">
+                <i class="fas fa-brain" style="font-size: 64px; margin-bottom: 24px; opacity: 0.1;"></i>
+                <h3>TF-IDF Context Compression Active</h3>
+                <p style="margin-top: 16px; max-width: 500px; margin-left: auto; margin-right: auto;">The core proxy is
+                    currently monitoring token budgets. Extractive summarization will trigger at 90% context window
+                    utilization.</p>
+            </div>
+        </div>
+
+        <!-- SESSION VIEWER -->
+        <div id="view-sessions" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Session Viewer</h2>
+                    <p>Trace and replay model interactions across all nodes.</p>
+                </div>
+            </div>
+            <div class="grid-12">
+                <div class="glass" style="grid-column: span 4; padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 600px;">
+                    <div style="padding: 24px; border-bottom: 1px solid var(--glass-border);">
+                        <input type="text" class="glass-input" style="width: 100%;" placeholder="Search sessions...">
+                    </div>
+                    <div style="overflow-y: auto; flex: 1;">
+                        {% if dashboard.ace_sessions|length == 0 and dashboard.agent_sessions|length == 0 %}
+                        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No active sessions</div>
+                        {% endif %}
+                        {% for s in dashboard.ace_sessions %}
+                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                            <div style="font-weight: 700; font-size: 14px;">ACE: {{ s.agent_name|default('Unknown') }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">{{ s.status|default('active') }}</div>
+                        </div>
+                        {% endfor %}
+                        {% for s in dashboard.agent_sessions %}
+                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                            <div style="font-weight: 700; font-size: 14px;">Agent: {{ s.id|truncate(12, True) }}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">{{ (s.messages|default([]))|length }} messages</div>
                         </div>
                         {% endfor %}
                     </div>
-                    {% endif %}
                 </div>
-            </div>
-            
-            <div class="glass" style="grid-column: span 4; padding: 24px;">
-                <div class="card-header">System Health <div class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">Optimal</div></div>
                 
-                <div class="timeline" style="margin-top: 24px;">
-                    <div class="timeline-item">
-                        <div style="font-size: 14px; font-weight: 500;">Bridge Connected</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">{{ dashboard.state.bridge_base }}</div>
+                <div class="glass" style="grid-column: span 8; padding: 32px; position: relative; min-height: 600px;">
+                    <div class="card-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 24px; margin-bottom: 32px;">Active Session Context</div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div style="font-size: 12px; color: var(--text-muted);">Current Segment</div>
+                            <div class="glass" style="padding: 16px; margin-top: 12px; background: rgba(59, 130, 246, 0.05);">
+                                <div style="font-weight: 800; font-size: 13px; color: var(--accent-primary); margin-bottom: 8px;">User Instruction</div>
+                                <div style="font-size: 14px; line-height: 1.6;">Awaiting selection from sidebar...</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="timeline-item">
-                        <div style="font-size: 14px; font-weight: 500;">LM Studio Synced</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Models verified</div>
-                    </div>
-                    <div class="timeline-item">
-                        <div style="font-size: 14px; font-weight: 500;">Context Engine Active</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">TF-IDF Summarization Ready</div>
+                    <div style="position: absolute; bottom: 32px; left: 32px; right: 32px; display: flex; gap: 16px;">
+                        <button class="btn btn-secondary" style="flex: 1;"><i class="fas fa-play"></i> Resume Session</button>
+                        <button class="btn btn-primary" style="flex: 1;"><i class="fas fa-code-branch"></i> Branch Checkpoint</button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- INFERENCE LAB -->
-    <div id="view-playground" class="view-section">
-        <h2 class="page-title">Inference Lab</h2>
-        <div class="grid-12">
-            <div class="glass" style="grid-column: span 8; padding: 24px;">
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label class="form-label">Execution Mode</label>
-                        <select id="inference-mode" class="glass-input form-control">
-                            <option value="direct">Direct Completion</option>
-                            <option value="rag">RAG (Retrieval Augmented)</option>
-                            <option value="ace">ACE Reflection</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Target Role</label>
-                        <select id="inference-role" class="glass-input form-control">
-                            <option value="main">Main ({{ dashboard.state.role_map.main|truncate(15) }})</option>
-                            <option value="reasoning">Reasoning ({{ dashboard.state.role_map.reasoning|truncate(15) }})</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">System Instructions / Preset Template</label>
-                    <textarea id="inference-system" class="glass-input form-control" style="min-height: 80px;">You are an expert system. Think step by step.</textarea>
-                    <div style="display: flex; gap: 8px; margin-top: 8px;">
-                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Developer</button>
-                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Analyst</button>
-                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;">Creative</button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">User Query</label>
-                    <textarea id="inference-query" class="glass-input form-control" placeholder="Enter your prompt here..."></textarea>
-                </div>
-                
-                <div style="display: flex; justify-content: flex-end; gap: 12px;">
-                    <button class="btn btn-secondary" onclick="document.getElementById('inference-query').value = ''">Clear</button>
-                    <button class="btn btn-primary" onclick="runInference()">Execute Generation</button>
-                </div>
-                
-                <div class="card-header" style="margin-top: 32px; border-top: 1px solid var(--glass-border); padding-top: 24px;">Output</div>
-                <div id="inference-output" class="console-output" style="min-height: 200px; color: var(--text-primary);">
-                    <span style="color: var(--text-muted)">Awaiting execution...</span>
+        <!-- PRESET MANAGER -->
+        <div id="view-presets" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Preset Manager</h2>
+                    <p>Sync configuration files and export to local model directories.</p>
                 </div>
             </div>
-            
-            <div class="glass" style="grid-column: span 4; padding: 24px;">
-                <div class="card-header">Generation Parameters</div>
-                
-                <div class="form-group">
-                    <div style="display: flex; justify-content: space-between;">
-                        <label class="form-label">Temperature</label>
-                        <span id="label-temp" style="font-size: 13px; color: var(--text-secondary);">0.7</span>
-                    </div>
-                    <input type="range" id="param-temp" min="0" max="2" step="0.1" value="0.7" style="width: 100%;" oninput="document.getElementById('label-temp').innerText=this.value">
-                </div>
-                
-                <div class="form-group">
-                    <div style="display: flex; justify-content: space-between;">
-                        <label class="form-label">Top-P</label>
-                        <span id="label-topp" style="font-size: 13px; color: var(--text-secondary);">0.9</span>
-                    </div>
-                    <input type="range" id="param-topp" min="0" max="1" step="0.05" value="0.9" style="width: 100%;" oninput="document.getElementById('label-topp').innerText=this.value">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Max Output Tokens</label>
-                    <input type="number" id="param-tokens" class="glass-input form-control" value="2048">
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Hardware Profile Override</label>
-                    <select class="glass-input form-control">
-                        <option>Auto (Hardware Aware)</option>
-                        <option>Force Max GPU</option>
-                        <option>Force CPU Offload</option>
+            <div class="grid-2">
+                <div class="glass" style="padding: 40px;">
+                    <div class="card-header">Load Preset</div>
+                    <select id="preset-select" class="glass-input" style="width: 100%; margin: 24px 0;">
+                        {% for p in dashboard.presets %}
+                        <option value="{{ p.path }}">{{ p.name }}</option>
+                        {% endfor %}
                     </select>
+                    <button class="btn btn-primary" onclick="applyPreset()" style="width: 100%;"><i
+                            class="fas fa-bolt"></i> Apply Preset</button>
+                </div>
+                <div class="glass" style="padding: 40px;">
+                    <div class="card-header">Snapshot Runtime</div>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin: 24px 0;">Persist active
+                        configuration to project `.env` and generate LM Studio compatible profile.</p>
+                    <button class="btn btn-secondary" onclick="exportPreset()" style="width: 100%;"><i
+                            class="fas fa-file-export"></i> Sync & Export</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- CONTEXT ENGINE -->
-    <div id="view-context" class="view-section">
-        <h2 class="page-title">Context Engineering & Token Budget</h2>
-        <div class="grid-12">
-            <div class="glass" style="grid-column: span 12; padding: 24px;">
-                <div class="grid-3" style="margin-bottom: 24px;">
-                    <div class="glass-input" style="padding: 16px; text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Total Context Budget</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-primary); margin-top: 8px;">128,000</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">Tokens</div>
-                    </div>
-                    <div class="glass-input" style="padding: 16px; text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Current Usage</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-success); margin-top: 8px;">4,250</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">~3.3% capacity</div>
-                    </div>
-                    <div class="glass-input" style="padding: 16px; text-align: center;">
-                        <div style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase;">Compression Ratio</div>
-                        <div style="font-size: 28px; font-weight: 700; color: var(--accent-secondary); margin-top: 8px;">4.2x</div>
-                        <div style="font-size: 11px; color: var(--text-muted);">Via TF-IDF Algo</div>
-                    </div>
+        <!-- SYSTEM SYNC -->
+        <div id="view-settings" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>System Sync</h2>
+                    <p>Backend endpoint bridge and hardware detection tuning.</p>
                 </div>
-                
-                <div class="card-header">Memory Visualization</div>
-                <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; margin-top: 16px;">
-                    <div style="width: 15%; background: var(--accent-primary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">System (15%)</div>
-                    <div style="width: 25%; background: var(--accent-secondary); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">RAG (25%)</div>
-                    <div style="width: 20%; background: var(--accent-success); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">Compacted (20%)</div>
-                    <div style="width: 10%; background: var(--accent-warning); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #000;">Recent (10%)</div>
-                    <div style="width: 30%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; font-size: 11px; color: var(--text-muted);">Free Space</div>
+            </div>
+            <div class="glass" style="padding: 40px; max-width: 600px; margin: 0 auto;">
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label class="form-label">Proxy Bridge Backend</label>
+                    <input type="text" id="bridge-base" class="glass-input" style="width: 100%;"
+                        value="{{ dashboard.state.bridge_base }}">
                 </div>
+                <div class="form-group" style="margin-bottom: 32px;">
+                    <label class="form-label">LM Studio Local API</label>
+                    <input type="text" id="lmstudio-base" class="glass-input" style="width: 100%;"
+                        value="{{ dashboard.state.lmstudio_base }}">
+                </div>
+                <button class="btn btn-primary" onclick="saveSystemConfig()" style="width: 100%;"><i
+                        class="fas fa-save"></i> Commit Settings</button>
             </div>
         </div>
+
     </div>
 
-    <!-- SESSION VIEWER -->
-    <div id="view-sessions" class="view-section">
-        <h2 class="page-title">Session Viewer & Data</h2>
-        <div class="grid-12">
-            <div class="glass" style="grid-column: span 4; padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 600px;">
-                <div style="padding: 20px; border-bottom: 1px solid var(--glass-border);">
-                    <input type="text" class="glass-input form-control" placeholder="Search sessions...">
-                </div>
-                <div style="overflow-y: auto; flex: 1;">
-                    <!-- Placeholder Sessions -->
-                    <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; background: rgba(59, 130, 246, 0.1);">
-                        <div style="font-weight: 600; font-size: 14px;">Code Refactor #401</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">ACE Agent • 14 min ago</div>
-                    </div>
-                    <div style="padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;">
-                        <div style="font-weight: 600; font-size: 14px;">Docs Summarization</div>
-                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Workflow • 2 hours ago</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass" style="grid-column: span 8; padding: 24px; position: relative;">
-                <div class="card-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 24px;">Code Refactor #401 Timeline</div>
-                
-                <div class="timeline">
-                    <div class="timeline-item">
-                        <div style="font-size: 12px; color: var(--text-muted);">14 mins ago</div>
-                        <div class="glass-input" style="padding: 12px; margin-top: 8px;">
-                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-primary); margin-bottom: 4px;">User</div>
-                            <div style="font-size: 14px;">Please refactor the context_manager to use TF-IDF algorithmic summarization.</div>
-                        </div>
-                    </div>
-                    <div class="timeline-item">
-                        <div style="font-size: 12px; color: var(--text-muted);">13 mins ago</div>
-                        <div class="glass-input" style="padding: 12px; margin-top: 8px; background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.3);">
-                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-secondary); margin-bottom: 4px;">Agent: Thinking</div>
-                            <div style="font-family: var(--font-mono); font-size: 12px; color: #a78bfa;">Analyzed request. Identifying dependencies. Implementing `numpy`-backed TF-IDF algorithm to avoid heavy NLTK loads...</div>
-                        </div>
-                    </div>
-                    <div class="timeline-item">
-                        <div style="font-size: 12px; color: var(--text-muted);">12 mins ago</div>
-                        <div class="glass-input" style="padding: 12px; margin-top: 8px;">
-                            <div style="font-weight: 600; font-size: 13px; color: var(--accent-success); margin-bottom: 4px;">Agent: Code Execution</div>
-                            <div class="console-output" style="margin-top: 8px; padding: 8px;">Executed file replacements successfully. Reloading module states.</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="position: absolute; bottom: 24px; left: 24px; right: 24px; display: flex; gap: 12px;">
-                    <button class="btn btn-secondary" style="flex: 1;">Resume Session</button>
-                    <button class="btn btn-primary" style="flex: 1;">Branch from Checkpoint</button>
-                </div>
-            </div>
-        </div>
+    <!-- Global Toasts -->
+    <div id="toast-container"
+        style="position: fixed; bottom: 40px; right: 40px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none;">
     </div>
-
-    <!-- PRESETS -->
-    <div id="view-presets" class="view-section">
-        <h2 class="page-title">Preset Config Manager</h2>
-        
-        <div class="grid-12">
-            <div class="glass" style="grid-column: span 12; padding: 24px;">
-                <div class="card-header">
-                    <span>LM Studio Sync</span>
-                    <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Auto-Discover System Hardware</button>
-                </div>
-                
-                <div class="grid-3" style="margin-top: 24px;">
-                    <div class="glass-input" style="padding: 20px; text-align: center; border-color: var(--accent-primary);">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" style="margin: 0 auto 12px auto;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        <div style="font-weight: 600;">Max Throughput</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Optimized for coding sprints and fast RAG. Sacrifices some precision.</div>
-                        <button class="btn btn-primary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
-                    </div>
-                    
-                    <div class="glass-input" style="padding: 20px; text-align: center;">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" stroke-width="2" style="margin: 0 auto 12px auto;"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <div style="font-weight: 600;">Deep Reasoning</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Max precision, high context. Slower generation optimized for math/logic.</div>
-                        <button class="btn btn-secondary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
-                    </div>
-                    
-                    <div class="glass-input" style="padding: 20px; text-align: center;">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-success)" stroke-width="2" style="margin: 0 auto 12px auto;"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-                        <div style="font-weight: 600;">Hardware Tuned</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Specific setup generated by analyzing your environment and GPUs.</div>
-                        <button class="btn btn-secondary" style="margin-top: 16px; width: 100%;">Apply & Sync</button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="glass" style="grid-column: span 12; padding: 24px;">
-                <div class="card-header">Bidirectional .env Manager</div>
-                <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
-                    Export logic updates your LM Studio presets directory directly, while saving here automatically writes to the proxy `.env` file to ensure the systems share identical configurations.
-                </div>
-                <div class="console-output" style="background: rgba(0,0,0,0.6); color: #fff;">
-                    # .env Preview<br>
-                    MAIN_MODEL={{ dashboard.state.role_map.main|default('') }}<br>
-                    REASONING_MODEL={{ dashboard.state.role_map.reasoning|default('') }}<br>
-                    EMBED_MODEL={{ dashboard.state.role_map.embed|default('') }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- SETTINGS -->
-    <div id="view-settings" class="view-section">
-        <h2 class="page-title">System Synchronization</h2>
-        <div class="glass" style="padding: 24px; max-width: 600px;">
-            <div class="form-group">
-                <label class="form-label">Proxy Bridge Backend URL</label>
-                <input type="text" class="glass-input form-control" value="{{ dashboard.state.bridge_base }}">
-            </div>
-            <div class="form-group">
-                <label class="form-label">LM Studio Local Server URL</label>
-                <input type="text" class="glass-input form-control" value="{{ dashboard.state.lmstudio_base }}">
-            </div>
-            <button class="btn btn-primary" style="margin-top: 16px;">Save System Config</button>
-        </div>
-    </div>
-
 </div>
 
 <script>
-    // Include CSRF Token
     const csrfToken = '{{ csrf_token() }}';
+    const roleMap = {{ dashboard.state.role_map|tojson|safe }};
+
+    function byId(id) { return document.getElementById(id); }
+
+    function showToast(title, msg, type = 'info') {
+        const container = byId('toast-container');
+        const div = document.createElement('div');
+        div.className = 'glass';
+        div.style.padding = '16px 24px';
+        div.style.borderLeft = `4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'}`;
+        div.style.pointerEvents = 'auto';
+        div.innerHTML = `<div style="font-weight: 800; font-size: 13px;">${title}</div><div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${msg}</div>`;
+        container.appendChild(div);
+        setTimeout(() => div.remove(), 4000);
+    }
 
     async function apiPost(url, body) {
-        const response = await fetch(url, {
+        const res = await fetch(url, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": csrfToken,
-            },
+            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
             body: JSON.stringify(body || {}),
         });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.error || data.detail || "Request failed");
-        }
-        return data;
+        return await res.json();
     }
 
     function switchView(viewId, element) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
-        const targetView = document.getElementById('view-' + viewId);
-        if(targetView) targetView.classList.add('active');
-        if(element) element.classList.add('active');
+        const target = byId('view-' + viewId);
+        if (target) target.classList.add('active');
+        if (element) element.classList.add('active');
     }
 
-    async function runInference() {
-        const query = document.getElementById('inference-query').value;
-        const out = document.getElementById('inference-output');
-        const system = document.getElementById('inference-system').value;
-        const temp = parseFloat(document.getElementById('param-temp').value) || 0.7;
-        const topp = parseFloat(document.getElementById('param-topp').value) || 0.9;
-        const maxTokens = parseInt(document.getElementById('param-tokens').value) || 2048;
-        const mode = document.getElementById('inference-mode').value;
-        const role = document.getElementById('inference-role').value;
+    // Live Streaming
+    function initLiveStream() {
+        const source = new EventSource('/events');
+        source.onmessage = (e) => {
+            const data = JSON.parse(e.data);
 
-        out.innerHTML = '<span style="color: var(--accent-primary);">Generating execution plan...</span><br><br>';
-        
+            // Console
+            const consoleBox = byId('live-console');
+            const entry = document.createElement('div');
+            entry.style.marginBottom = '6px';
+            entry.innerHTML = `<span style="color: var(--text-muted); font-size: 11px;">[${new Date().toLocaleTimeString()}]</span> <span style="font-weight:700; color: var(--accent-primary)">${data.type}</span>: ${data.message || ''}`;
+            consoleBox.prepend(entry);
+            if (consoleBox.children.length > 60) consoleBox.lastChild.remove();
+
+            // Gauges
+            if (data.type === 'HEARTBEAT' && data.data && data.data.hardware) {
+                const hw = data.data.hardware;
+                byId('gauge-vram').innerText = `${hw.vram_used_gb.toFixed(1)} / ${hw.vram_total_gb.toFixed(1)} GB`;
+                byId('fill-vram').style.width = `${(hw.vram_used_gb / hw.vram_total_gb * 100)}%`;
+                byId('gauge-ram').innerText = `${hw.ram_used_gb.toFixed(1)} / ${hw.ram_total_gb.toFixed(1)} GB`;
+                byId('fill-ram').style.width = `${(hw.ram_used_gb / hw.ram_total_gb * 100)}%`;
+                byId('gauge-cpu').innerText = `${hw.cpu_percent.toFixed(0)}%`;
+                byId('fill-cpu').style.width = `${hw.cpu_percent}%`;
+            }
+
+            // Timeline
+            if (data.type === 'SYSTEM' || data.type === 'HW_DISCOVERY') {
+                const timeline = byId('health-timeline');
+                const node = document.createElement('div');
+                node.className = 'timeline-item';
+                node.innerHTML = `<div style="font-size: 14px; font-weight: 700;">${data.message}</div>`;
+                timeline.prepend(node);
+                if (timeline.children.length > 5) timeline.lastChild.remove();
+                showToast('System Event', data.message);
+            }
+        };
+        source.onerror = () => {
+            byId('status-dot').style.background = 'var(--accent-error)';
+            byId('status-dot').style.boxShadow = '0 0 10px var(--accent-error)';
+        };
+    }
+
+    const appendMessage = (role, content) => {
+        const area = byId('inference-history');
+        const div = document.createElement('div');
+        div.className = `message ${role}`;
+        div.innerHTML = `<div class="message-content">${content.replace(/\n/g, '<br>')}</div>`;
+        area.appendChild(div);
+        area.scrollTop = area.scrollHeight;
+    };
+
+    async function runInference() {
+        const query = byId('inference-query').value;
+        if (!query) return;
+
+        appendMessage('user', query);
+        byId('inference-query').value = '';
+
+        const loader = document.createElement('div');
+        loader.className = 'message bot';
+        loader.innerHTML = '<div class="message-content" style="opacity: 0.5">Computing...</div>';
+        byId('inference-history').appendChild(loader);
+
         try {
+            const role = byId('inference-role').value;
             const payload = {
-                model: role === 'main' ? '{{ dashboard.state.role_map.main|default("default") }}' : '{{ dashboard.state.role_map.reasoning|default("default") }}',
-                system_prompt: system,
+                model: role === 'main' ? roleMap.main : roleMap.reasoning,
+                system_prompt: byId('inference-system').value,
                 input: query,
-                mode: mode,
-                temperature: temp,
-                top_p: topp,
-                max_tokens: maxTokens,
+                mode: byId('inference-mode').value,
+                temperature: parseFloat(byId('param-temp').value),
+                max_tokens: 2048,
                 stream: false
             };
 
             const task = await apiPost('/api/requests/chat/run', payload);
-            
-            out.innerHTML += '<span style="color: var(--accent-secondary);">Task Dispatched: ' + task.task_id + '</span><br>';
-            out.innerHTML += '<span style="color: var(--accent-secondary);">Awaiting bridge response...</span><br><br>';
 
-            // Poll the task
-            for (;;) {
-                const response = await fetch('/api/tasks/' + task.task_id);
-                const taskStatus = await response.json();
-                
-                if (taskStatus.status === "completed") {
-                    const result = taskStatus.result;
-                    let displayContent = "";
-                    if (result.output_text) {
-                        displayContent = result.output_text;
-                    } else if (result.choices && result.choices[0]) {
-                        displayContent = result.choices[0].message.content || JSON.stringify(result.choices[0].message);
-                    } else {
-                        displayContent = JSON.stringify(result, null, 2);
-                    }
-                    out.innerHTML = displayContent.replace(/\n/g, '<br>');
-                    break;
-                }
-                
-                if (taskStatus.status === "failed") {
-                    out.innerHTML = '<span style="color: var(--accent-error);">Error executing inference: ' + taskStatus.error + '</span>';
-                    break;
-                }
-                
-                await new Promise((resolve) => setTimeout(resolve, 1000));
+            let result = null;
+            while (!result) {
+                const res = await fetch('/api/tasks/' + task.task_id);
+                const taskData = await res.json();
+                if (taskData.status === 'completed') result = taskData.result;
+                else if (taskData.status === 'failed') throw new Error(taskData.error);
+                else await new Promise(r => setTimeout(r, 800));
             }
-        } catch(e) {
-            out.innerHTML = '<span style="color: var(--accent-error);">Error executing inference: ' + e.message + '</span>';
+
+            loader.remove();
+            const text = result.output_text || (result.choices && result.choices[0].message.content) || JSON.stringify(result);
+            appendMessage('bot', text);
+        } catch (e) {
+            loader.innerHTML = `<div class="message-content" style="color: var(--accent-error)">Error: ${e.message}</div>`;
+            showToast('Generation Error', e.message, 'error');
         }
+    }
+
+    function setSystemPreset(type) {
+        const dict = {
+            'Developer': 'You are a senior software engineer. Optimized for technical precision.',
+            'Analyst': 'You are a data analyst. Think step-by-step.'
+        };
+        byId('inference-system').value = dict[type] || '';
     }
 
     async function saveSystemConfig() {
-        const bridgeUrl = document.getElementById('bridge-base').value;
-        const lmstudioUrl = document.getElementById('lmstudio-base').value;
-        try {
-            await apiPost("/api/runtime/update-config", {
-                bridge_base: bridgeUrl,
-                lmstudio_base: lmstudioUrl,
-            });
-            alert("System configuration synced and saved successfully.");
-        } catch(e) {
-            alert("Failed to save config: " + e.message);
-        }
+        await apiPost("/api/runtime/update-config", {
+            bridge_base: byId('bridge-base').value,
+            lmstudio_base: byId('lmstudio-base').value,
+        });
+        showToast('Settings Saved', 'Backend configurations synchronized.', 'success');
     }
 
     async function refreshHardware() {
-        try {
-            await apiPost("/api/runtime/refresh", {});
-            window.location.reload();
-        } catch(e) {
-            alert("Failed to discover hardware: " + e.message);
-        }
+        showToast('Refreshing', 'Scanning local hardware bridge...', 'info');
+        await apiPost("/api/runtime/refresh", {});
+        setTimeout(() => window.location.reload(), 1200);
     }
 
-    // Attach Settings Handlers
-    document.addEventListener("DOMContentLoaded", () => {
-        const settingsSaveBtn = document.querySelector('#view-settings .btn-primary');
-        if (settingsSaveBtn) {
-            settingsSaveBtn.onclick = saveSystemConfig;
-        }
+    function clearPlayground() {
+        byId('inference-history').innerHTML = '<div class="message bot"><div class="message-content">System ready. Define your system instructions and start an inference session.</div></div>';
+        showToast('Cleared', 'Inference history cleared.', 'info');
+    }
 
-        const hardwareRefreshBtn = document.querySelector('#view-presets .btn-secondary');
-        if (hardwareRefreshBtn && hardwareRefreshBtn.textContent.includes('Auto-Discover')) {
-            hardwareRefreshBtn.onclick = refreshHardware;
-        }
+    async function applyPreset() {
+        const path = byId('preset-select').value;
+        if(!path) return;
+        showToast('Action Failed', 'Backend route for applyPreset is not implemented yet.', 'error');
+    }
 
-        // Attach buttons in inference lab to populate system prompts quickly
-        const presetTabs = document.querySelectorAll('#view-playground .btn-secondary');
-        presetTabs.forEach(btn => {
-            if (btn.textContent === 'Developer') {
-                btn.onclick = () => { document.getElementById('inference-system').value = 'You are an expert Python and Javascript full-stack software engineer. Provide very concise, correct, and optimal code without prose.' };
-            } else if (btn.textContent === 'Analyst') {
-                btn.onclick = () => { document.getElementById('inference-system').value = 'You are a senior data analyst. Think step-by-step to dissect the provided datasets, highlighting key trends, anomalies, and statistical conclusions.' };
-            } else if (btn.textContent === 'Creative') {
-                btn.onclick = () => { document.getElementById('inference-system').value = 'You are a creative writer and UX designer. Think vibrantly and optimize for aesthetic charm.' };
-            }
-        });
-    });
+    async function exportPreset() {
+        showToast('Action Failed', 'Backend route for exportPreset is not implemented yet.', 'error');
+    }
+
+    document.addEventListener('DOMContentLoaded', initLiveStream);
 </script>
 {% endblock %}

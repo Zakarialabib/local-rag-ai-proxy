@@ -7,7 +7,7 @@ import structlog
 logger = structlog.get_logger()
 
 LMSTUDIO_BASE = "http://192.168.1.12:1234"
-DEFAULT_RERANK_MODEL = "qwen3-reranker-0.6b"
+DEFAULT_RERANK_MODEL = "qwen.qwen3-reranker-4b"
 
 MODEL_DIR = os.path.join(os.path.expanduser("~"), ".cache", "lm-studio", "models")
 

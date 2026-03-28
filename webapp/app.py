@@ -49,10 +49,10 @@ def _default_state() -> OperatorState:
         lmstudio_base=os.getenv("LMSTUDIO_BASE_URL", "http://192.168.1.12:1234").rstrip("/"),
         selected_model=clean_model_id(os.getenv("MAIN_MODEL", "")),
         role_map={
-            "main": clean_model_id(os.getenv("MAIN_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")),
-            "reasoning": clean_model_id(os.getenv("REASONING_MODEL", "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")),
+            "main": clean_model_id(os.getenv("MAIN_MODEL", "qwen3.5-4b")),
+            "reasoning": clean_model_id(os.getenv("REASONING_MODEL", "qwen3.5-4b")),
             "embed": clean_model_id(os.getenv("EMBED_MODEL", "text-embedding-qwen3-embedding-4b")),
-            "rerank": clean_model_id(os.getenv("RERANK_MODEL", "qwen3-reranker-0.6b")),
+            "rerank": clean_model_id(os.getenv("RERANK_MODEL", "qwen.qwen3-reranker-4b")),
         },
     )
 

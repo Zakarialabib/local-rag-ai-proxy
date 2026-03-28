@@ -72,9 +72,9 @@ def _clean_bridge_port(value: str, default: int = 8080) -> int:
             return default
 
 EMBED_MODEL = _clean_env_model(os.getenv("EMBED_MODEL"), "text-embedding-qwen3-embedding-4b")
-RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), "qwen3-reranker-0.6b")
-MAIN_MODEL = _clean_env_model(os.getenv("MAIN_MODEL"), "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
-REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), "qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2")
+RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), "qwen.qwen3-reranker-4b")
+MAIN_MODEL = _clean_env_model(os.getenv("MAIN_MODEL"), "qwen3.5-4b")
+REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), "qwen3.5-4b")
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "3"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "900"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_CHUNK_OVERLAP", "150"))
