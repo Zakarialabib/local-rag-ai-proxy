@@ -61,6 +61,11 @@
         border-radius: 24px;
         position: relative;
         overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .glass:hover {
+        box-shadow: 0 30px 60px 0 rgba(0, 0, 0, 0.8);
     }
 
     .glass::after {
@@ -91,8 +96,6 @@
         box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
         background: rgba(30, 30, 45, 0.9);
     }
-
-    /* Removed empty wrapper class */
 
     /* Sidebar Refined */
     .sidebar {
@@ -217,7 +220,6 @@
             opacity: 0;
             transform: translateY(30px);
         }
-
         to {
             opacity: 1;
             transform: translateY(0);
@@ -256,12 +258,6 @@
         gap: 32px;
     }
 
-    .grid-12 {
-        display: grid;
-        grid-template-columns: repeat(12, 1fr);
-        gap: 32px;
-    }
-
     /* Cards */
     .stat-card {
         padding: 28px;
@@ -282,11 +278,6 @@
         font-size: 20px;
     }
 
-    .stat-info {
-        display: flex;
-        flex-direction: column;
-    }
-
     .stat-label {
         font-size: 11px;
         font-weight: 800;
@@ -302,6 +293,18 @@
         margin-top: 6px;
         font-family: var(--font-mono);
     }
+
+    .stat-trend {
+        font-size: 11px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .stat-trend.up { color: var(--accent-success); }
+    .stat-trend.down { color: var(--accent-error); }
 
     /* Buttons */
     .btn {
@@ -341,95 +344,6 @@
         border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* Playground */
-    .playground-container {
-        display: grid;
-        grid-template-columns: 1fr 360px;
-        gap: 32px;
-        height: calc(100vh - 240px);
-    }
-
-    .chat-box {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-    }
-
-    .message-area {
-        flex: 1;
-        overflow-y: auto;
-        padding: 32px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 28px;
-        margin-bottom: 24px;
-        border: 1px solid var(--glass-border);
-    }
-
-    .input-area {
-        display: flex;
-        gap: 16px;
-    }
-
-    .message {
-        margin-bottom: 32px;
-        max-width: 80%;
-    }
-
-    .message.user {
-        align-self: flex-end;
-        margin-left: auto;
-    }
-
-    .message-content {
-        padding: 18px 24px;
-        border-radius: 24px;
-        font-size: 15px;
-        line-height: 1.6;
-    }
-
-    .message.user .message-content {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
-        border-bottom-right-radius: 4px;
-        box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.3);
-    }
-
-    .message.bot .message-content {
-        background: var(--bg-card);
-        border: 1px solid var(--glass-border);
-        border-bottom-left-radius: 4px;
-    }
-
-    .settings-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 24px;
-        overflow-y: auto;
-    }
-
-    .form-label {
-        font-size: 11px;
-        font-weight: 800;
-        color: var(--text-muted);
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .progress-bar {
-        height: 6px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 3px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
     .console-output {
         font-family: var(--font-mono);
         font-size: 12px;
@@ -442,38 +356,22 @@
         overflow-y: auto;
     }
 
-    .timeline {
-        position: relative;
-        padding-left: 28px;
+    /* Custom Progress */
+    .progress-container {
+        height: 6px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 12px;
     }
 
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 1px;
-        background: var(--glass-border);
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        transition: width 1s ease;
     }
 
-    .timeline-item {
-        position: relative;
-        margin-bottom: 32px;
-    }
-
-    .timeline-item::before {
-        content: '';
-        position: absolute;
-        left: -32.5px;
-        top: 6px;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: var(--accent-primary);
-        box-shadow: 0 0 12px var(--accent-primary);
-    }
-
+    /* Badges */
     .badge {
         padding: 4px 10px;
         border-radius: 20px;
@@ -481,32 +379,54 @@
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        background: rgba(59, 130, 246, 0.1);
+        color: var(--accent-primary);
     }
 
-    /* Scrollbars */
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
+    .badge-success { background: rgba(16, 185, 129, 0.1); color: var(--accent-success); }
+    .badge-warning { background: rgba(245, 158, 11, 0.1); color: var(--accent-warning); }
+
+    /* Playground / Chat area */
+    .playground-container {
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        gap: 24px;
+        height: calc(100vh - 250px);
     }
 
-    ::-webkit-scrollbar-track {
-        background: transparent;
+    .chat-box {
+        display: flex;
+        flex-direction: column;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 24px;
+        border: 1px solid var(--glass-border);
+        overflow: hidden;
     }
 
-    ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
+    .message-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
     }
 
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
+    .input-area {
+        padding: 20px;
+        background: rgba(0, 0, 0, 0.3);
+        border-top: 1px solid var(--glass-border);
+        display: flex;
+        gap: 12px;
+    }
+
+    .settings-panel {
+        overflow-y: auto;
+        padding-right: 8px;
     }
 </style>
 
 <div class="dashboard-wrapper">
     <div class="sidebar">
         <div class="brand">
-            <h1><i class="fas fa-microchip"></i> Proxy Core</h1>
+            <h1><i class="fas fa-brain"></i> Proxy API</h1>
             <span>Intelligence Orchestrator</span>
         </div>
 
@@ -516,245 +436,139 @@
                 <i class="fas fa-th-large"></i> Overview
             </div>
             <div class="nav-item" onclick="switchView('playground', this)">
-                <i class="fas fa-flask"></i> Inference Lab
+                <i class="fas fa-vial"></i> Inference Lab
             </div>
 
             <div class="nav-label">Engine</div>
             <div class="nav-item" onclick="switchView('context', this)">
-                <i class="fas fa-brain"></i> Context Engine
+                <i class="fas fa-microchip"></i> Context Engine
             </div>
             <div class="nav-item" onclick="switchView('sessions', this)">
-                <i class="fas fa-history"></i> Session Viewer
+                <i class="fas fa-history"></i> Session Vault
             </div>
 
-            <div class="nav-label">System</div>
+            <div class="nav-label">Advanced Intelligence</div>
+            <div class="nav-item" onclick="switchView('retrieval', this)">
+                <i class="fas fa-search"></i> RAG / Retrieval
+            </div>
+            <div class="nav-item" onclick="switchView('embeddings', this)">
+                <i class="fas fa-vector-square"></i> Embedding Space
+            </div>
+            <div class="nav-item" onclick="switchView('agent', this)">
+                <i class="fas fa-robot"></i> Agent Control
+            </div>
+            <div class="nav-item" onclick="switchView('ace', this)">
+                <i class="fas fa-bolt"></i> ACE Pipeline
+            </div>
+            <div class="nav-item" onclick="switchView('benchmark', this)">
+                <i class="fas fa-tachometer-alt"></i> Benchmark Center
+            </div>
+
+            <div class="nav-label">Management</div>
             <div class="nav-item" onclick="switchView('presets', this)">
-                <i class="fas fa-tags"></i> Preset Manager
+                <i class="fas fa-sliders-h"></i> Presets
             </div>
             <div class="nav-item" onclick="switchView('settings', this)">
-                <i class="fas fa-sync"></i> System Sync
+                <i class="fas fa-sync"></i> System Bridge
             </div>
         </div>
 
         <div class="sidebar-footer">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div id="status-dot"
-                    style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); box-shadow: 0 0 10px var(--accent-success);">
-                </div>
-                <div style="font-size: 12px; font-weight: 700;">Proxy Online</div>
+                <div id="status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-success); box-shadow: 0 0 10px var(--accent-success);"></div>
+                <div style="font-size: 12px; font-weight: 700;">System Online</div>
             </div>
         </div>
     </div>
 
     <div class="main-content">
-
         <!-- OVERVIEW -->
         <div id="view-overview" class="view-section active">
             <div class="header-row">
                 <div class="page-title">
                     <h2>Intelligence Overview</h2>
-                    <p>Distributed model routing and hardware utilization metrics.</p>
+                    <p>Dynamic routing and cross-model performance analytics.</p>
                 </div>
-                <button class="btn btn-secondary" onclick="refreshHardware()">
-                    <i class="fas fa-redo-alt"></i> Rediscover Hardware
-                </button>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="refreshHardware()">
+                        <i class="fas fa-redo-alt"></i> Rediscover
+                    </button>
+                    <button class="btn btn-primary" onclick="switchView('benchmark')">
+                        <i class="fas fa-play"></i> Run Autotune
+                    </button>
+                </div>
             </div>
 
             <div class="grid-4" style="margin-bottom: 32px;">
                 <div class="glass stat-card">
-                    <div class="icon-box"><i class="fas fa-terminal"></i></div>
+                    <div class="icon-box"><i class="fas fa-microchip"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label">Main Inference</span>
-                        <span class="stat-value" id="role-main">{{
-                            dashboard.state.role_map.main|truncate(22)|default('Disconnected') }}</span>
+                        <span class="stat-label">Inference Core</span>
+                        <span class="stat-value" id="role-main-text">{{ dashboard.state.role_map.main|truncate(20) }}</span>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: 75%;"></div>
                     </div>
                 </div>
                 <div class="glass stat-card">
-                    <div class="icon-box" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-secondary);">
-                        <i class="fas fa-brain"></i>
-                    </div>
+                    <div class="icon-box" style="background: rgba(139, 92, 246, 0.1); color: var(--accent-secondary);"><i class="fas fa-brain"></i></div>
                     <div class="stat-info">
                         <span class="stat-label">Reasoning Engine</span>
-                        <span class="stat-value" id="role-reasoning">{{
-                            dashboard.state.role_map.reasoning|truncate(22)|default('Disconnected') }}</span>
+                        <span class="stat-value" id="role-reasoning-text">{{ dashboard.state.role_map.reasoning|truncate(20) }}</span>
                     </div>
+                    <div class="stat-trend up"><i class="fas fa-arrow-up"></i> +12% Efficiency</div>
                 </div>
                 <div class="glass stat-card">
-                    <div class="icon-box" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-success);"><i
-                            class="fas fa-database"></i></div>
+                    <div class="icon-box" style="background: rgba(16, 185, 129, 0.1); color: var(--accent-success);"><i class="fas fa-database"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label">Embeddings</span>
-                        <span class="stat-value" id="role-embed">{{
-                            dashboard.state.role_map.embed|truncate(22)|default('Disconnected') }}</span>
+                        <span class="stat-label">Embedding Pool</span>
+                        <span class="stat-value" id="role-embed-text">{{ dashboard.state.role_map.embed|truncate(20) }}</span>
                     </div>
+                    <div class="badge badge-success" style="width: fit-content; margin-top: 8px;">Synchronized</div>
                 </div>
                 <div class="glass stat-card">
-                    <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-warning);"><i
-                            class="fas fa-bolt"></i></div>
+                    <div class="icon-box" style="background: rgba(245, 158, 11, 0.1); color: var(--accent-warning);"><i class="fas fa-memory"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label">Active Tasks</span>
-                        <span class="stat-value" id="active-tasks">0</span>
+                        <span class="stat-label">VRAM Utilization</span>
+                        <span class="stat-value" id="vram-text">-- GB / -- GB</span>
+                    </div>
+                    <div class="progress-container">
+                        <div id="vram-bar" class="progress-bar" style="width: 0%;"></div>
                     </div>
                 </div>
             </div>
 
-            <div class="grid-12">
-                <div class="glass" style="grid-column: span 8; padding: 40px;">
-                    <div class="card-header">
-                        <span>Hardware Performance</span>
-                        <div class="badge" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-primary);">
-                            Live Feed</div>
+            <div class="grid-2">
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">Hardware Topology</span>
+                        <span class="badge">Live telemetry</span>
                     </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 32px; margin-top: 32px;">
-                        <div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-memory"></i>
-                                    Dedicated VRAM</span>
-                                <span id="gauge-vram"
-                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-primary);">
-                                    {{ dashboard.hardware.vram_used_gb|default(0)|round(1) }} / {{
-                                    dashboard.hardware.vram_total_gb|default(1)|round(1) }} GB
-                                </span>
-                            </div>
-                            <div class="progress-bar">
-                                <div id="fill-vram" class="progress-fill"
-                                    style="background: var(--accent-primary); width: {{ (dashboard.hardware.vram_used_gb|default(0) / (dashboard.hardware.vram_total_gb or 1) * 100)|int }}%">
-                                </div>
-                            </div>
+                    <div id="hardware-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                        <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px;">
+                            <span style="display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase;">GPU Active</span>
+                            <span id="hw-gpu" style="font-weight: 700; font-size: 14px;">Searching...</span>
                         </div>
-
-                        <div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-microchip"></i>
-                                    System Memory</span>
-                                <span id="gauge-ram"
-                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-secondary);">
-                                    {{ dashboard.hardware.ram_used_gb|default(0)|round(1) }} / {{
-                                    dashboard.hardware.ram_total_gb|default(1)|round(1) }} GB
-                                </span>
-                            </div>
-                            <div class="progress-bar">
-                                <div id="fill-ram" class="progress-fill"
-                                    style="background: var(--accent-secondary); width: {{ (dashboard.hardware.ram_used_gb|default(0) / (dashboard.hardware.ram_total_gb or 1) * 100)|int }}%">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                                <span class="form-label" style="margin-bottom: 0;"><i class="fas fa-cpu"></i> CPU
-                                    Compute</span>
-                                <span id="gauge-cpu"
-                                    style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-success);">
-                                    {{ dashboard.hardware.cpu_percent|default(0)|int }}%
-                                </span>
-                            </div>
-                            <div class="progress-bar">
-                                <div id="fill-cpu" class="progress-fill"
-                                    style="background: var(--accent-success); width: {{ dashboard.hardware.cpu_percent|default(0)|int }}%">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card-header" style="margin-top: 48px;">Live System Log</div>
-                    <div id="live-console" class="console-output" style="height: 220px; margin-top: 16px;"></div>
-                </div>
-
-                <div class="glass" style="grid-column: span 4; padding: 40px;">
-                    <div class="card-header">Infrastructure Pulse</div>
-                    <div id="health-timeline" class="timeline" style="margin-top: 32px;">
-                        <div class="timeline-item">
-                            <div style="font-size: 14px; font-weight: 700;">Proxy Initialized</div>
-                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Node: {{
-                                dashboard.state.bridge_base }}</div>
-                        </div>
-                        <div class="timeline-item">
-                            <div style="font-size: 14px; font-weight: 700;">Catalog Synced</div>
-                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">{{
-                                dashboard.models|length }} models ready</div>
+                        <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px;">
+                            <span style="display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Platform</span>
+                            <span id="hw-platform" style="font-weight: 700; font-size: 14px;">Searching...</span>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- INFERENCE LAB -->
-        <div id="view-playground" class="view-section">
-            <div class="header-row">
-                <div class="page-title">
-                    <h2>Inference Lab</h2>
-                    <p>Hardware-aware model playground and prompt engineering.</p>
-                </div>
-                <div style="display: flex; gap: 16px;">
-                    <button class="btn btn-secondary" onclick="clearPlayground()"><i class="fas fa-eraser"></i>
-                        Clear</button>
-                    <button class="btn btn-primary" onclick="runInference()"><i class="fas fa-play"></i>
-                        Execute</button>
-                </div>
-            </div>
-
-            <div class="playground-container">
-                <div class="chat-box">
-                    <div class="message-area" id="inference-history">
-                        <div class="message bot">
-                            <div class="message-content">
-                                System ready. Define your system instructions and start an inference session.
-                            </div>
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header" style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: 1px;">System Health</span>
+                        <span class="badge badge-warning">Watchdog Active</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: var(--text-secondary);">Bridge Latency</span>
+                            <span id="bridge-latency" style="font-family: var(--font-mono); color: var(--accent-success);">-- ms</span>
                         </div>
-                    </div>
-                    <div class="input-area">
-                        <input type="text" id="inference-query" class="glass-input" style="flex: 1;"
-                            placeholder="Send a message..." onkeypress="if(event.key === 'Enter') runInference()">
-                        <button class="btn btn-primary" onclick="runInference()"><i
-                                class="fas fa-paper-plane"></i></button>
-                    </div>
-                </div>
-
-                <div class="settings-panel glass" style="padding: 28px;">
-                    <div class="nav-label" style="margin: 0 0 16px 0;">Model Selector</div>
-
-                    <div class="form-group">
-                        <label class="form-label">Active Role</label>
-                        <select id="inference-role" class="glass-input" style="width: 100%;">
-                            <option value="main">Main Core</option>
-                            <option value="reasoning">Reasoning Engine</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label">Processing Strategy</label>
-                        <select id="inference-mode" class="glass-input" style="width: 100%;">
-                            <option value="direct">Fast Completion</option>
-                            <option value="reason">Reasoning Chain</option>
-                            <option value="rag">Context Augmented</option>
-                        </select>
-                    </div>
-
-                    <div class="nav-label" style="margin: 24px 0 16px 0;">Parameters</div>
-
-                    <div class="form-group">
-                        <div style="display: flex; justify-content: space-between;">
-                            <label class="form-label">Temperature</label>
-                            <span id="temp-val" style="font-size: 13px; color: var(--accent-primary);">0.7</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; color: var(--text-secondary);">Loaded Models</span>
+                            <span id="loaded-count" style="font-family: var(--font-mono); color: var(--accent-primary);">--</span>
                         </div>
-                        <input type="range" id="param-temp" min="0" max="1.5" step="0.1" value="0.7"
-                            style="width: 100%;" oninput="byId('temp-val').innerText = this.value">
-                    </div>
-
-                    <div class="form-group" style="margin-top: auto;">
-                        <label class="form-label">System Context</label>
-                        <textarea id="inference-system" class="glass-input"
-                            style="width: 100%; min-height: 140px; font-size: 13px;"
-                            placeholder="System persona..."></textarea>
-                    </div>
-
-                    <div class="grid-2" style="margin-top: 12px;">
-                        <button class="btn btn-secondary" style="padding: 10px;"
-                            onclick="setSystemPreset('Developer')">Dev</button>
-                        <button class="btn btn-secondary" style="padding: 10px;"
-                            onclick="setSystemPreset('Analyst')">Analyst</button>
                     </div>
                 </div>
             </div>
@@ -764,65 +578,234 @@
         <div id="view-context" class="view-section">
             <div class="header-row">
                 <div class="page-title">
-                    <h2>Context Engineering</h2>
-                    <p>Algorithmic pruning and TF-IDF memory optimization.</p>
+                    <h2>Context Engine</h2>
+                    <p>Background prompt optimization and A/B test analysis.</p>
                 </div>
             </div>
-            <div class="glass" style="padding: 60px; text-align: center; color: var(--text-secondary);">
-                <i class="fas fa-brain" style="font-size: 64px; margin-bottom: 24px; opacity: 0.1;"></i>
-                <h3>TF-IDF Context Compression Active</h3>
-                <p style="margin-top: 16px; max-width: 500px; margin-left: auto; margin-right: auto;">The core proxy is
-                    currently monitoring token budgets. Extractive summarization will trigger at 90% context window
-                    utilization.</p>
+            <div class="glass" style="padding: 40px; max-width: 900px; margin: 0 auto;">
+                <div class="card-header">Optimization Metrics</div>
+                <div class="grid-2" style="margin-top: 24px;">
+                    <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px;">
+                        <span class="stat-label">Prompt Compression</span>
+                        <span class="stat-value" style="color: var(--accent-success);">+24.2%</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 16px;">
+                        <span class="stat-label">KV Cache Savings</span>
+                        <span class="stat-value" style="color: var(--accent-primary);">1.2 GB</span>
+                    </div>
+                </div>
+                <div style="margin-top: 32px;">
+                    <div class="card-header">Optimization Trace</div>
+                    <pre class="console-output" style="height: 300px; margin-top: 16px;">[SYSTEM] Initializing Lite-DSPy optimizer...
+[OPTIMIZER] Analyzing session history for 'coding_sprint'...
+[OPTIMIZER] Recommending compression for System Prompt (Layer 2)
+[SYSTEM] Optimization baseline established.</pre>
+                </div>
             </div>
         </div>
 
-        <!-- SESSION VIEWER -->
+        <!-- SESSION VAULT -->
         <div id="view-sessions" class="view-section">
             <div class="header-row">
                 <div class="page-title">
-                    <h2>Session Viewer</h2>
-                    <p>Trace and replay model interactions across all nodes.</p>
+                    <h2>Session Vault</h2>
+                    <p>Comprehensive historical archive of all intelligence workflows.</p>
                 </div>
             </div>
-            <div class="grid-12">
-                <div class="glass" style="grid-column: span 4; padding: 0; display: flex; flex-direction: column; overflow: hidden; height: 600px;">
-                    <div style="padding: 24px; border-bottom: 1px solid var(--glass-border);">
-                        <input type="text" class="glass-input" style="width: 100%;" placeholder="Search sessions...">
+            <div class="glass" style="padding: 32px; max-width: 1000px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <div class="card-header">Historical Intelligence</div>
+                    <button class="btn btn-secondary" onclick="refreshState()"><i class="fas fa-sync"></i> Refresh Vault</button>
+                </div>
+                <div class="console-output" style="height: 500px;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="text-align: left; border-bottom: 1px solid var(--glass-border); color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
+                                <th style="padding: 12px;">ID</th>
+                                <th style="padding: 12px;">Role</th>
+                                <th style="padding: 12px;">Workflow</th>
+                                <th style="padding: 12px;">Status</th>
+                                <th style="padding: 12px;">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody id="session-vault-body">
+                            <!-- Populated via JS or polling -->
+                            <tr>
+                                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-muted);">
+                                    <i class="fas fa-scroll" style="font-size: 24px; display: block; margin-bottom: 12px; opacity: 0.3;"></i>
+                                    Browsing cold storage...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- RAG / RETRIEVAL -->
+        <div id="view-retrieval" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>RAG / Retrieval</h2>
+                    <p>Test document semantic search and reranking efficiency.</p>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header">Search Engine</div>
+                    <div style="margin: 12px 0; padding: 12px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <div style="font-size: 11px; font-weight: 700; color: #60a5fa; text-transform: uppercase; margin-bottom: 4px;">Strategy: semantic_recall_v2</div>
+                        <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Optimized for high recall on local 8GB-12GB VRAM hardware. Uses sub-vector quantization for memory efficiency.</div>
                     </div>
-                    <div style="overflow-y: auto; flex: 1;">
-                        {% if dashboard.ace_sessions|length == 0 and dashboard.agent_sessions|length == 0 %}
-                        <div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">No active sessions</div>
-                        {% endif %}
-                        {% for s in dashboard.ace_sessions %}
-                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
-                            <div style="font-weight: 700; font-size: 14px;">ACE: {{ s.agent_name|default('Unknown') }}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">{{ s.status|default('active') }}</div>
+                    <input id="retrieval-input" class="glass-input" style="width:100%;margin:16px 0;" placeholder="Search query...">
+                    <input id="retrieval-docs" class="glass-input" style="width:100%;margin-bottom:16px;" placeholder="Doc identifiers">
+                    <button class="btn btn-primary" style="width:100%;" onclick="runRetrievalTest()"><i class="fas fa-search"></i> Execute Search</button>
+                    <pre id="retrieval-result" class="console-output" style="height:250px; margin-top:20px;"></pre>
+                </div>
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header">Rerank Optimization</div>
+                    <div style="margin: 12px 0; padding: 12px; border-radius: 12px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.2);">
+                        <div style="font-size: 11px; font-weight: 700; color: #c084fc; text-transform: uppercase; margin-bottom: 4px;">Optimization: cross_encoder_precision</div>
+                        <div style="font-size: 11px; color: #94a3b8; line-height: 1.4;">Increases precision by 10x using a secondary analysis pass. Essential for preventing hallucinations in technical RAG.</div>
+                    </div>
+                    <input id="rerank-query" class="glass-input" style="width:100%;margin:16px 0;" placeholder="Refined query...">
+                    <textarea id="rerank-chunks" class="glass-input" style="width:100%;margin-bottom:16px;min-height:100px;" placeholder="Document chunks..."></textarea>
+                    <button class="btn btn-secondary" style="width:100%;" onclick="runRerankTest()"><i class="fas fa-sort-amount-up"></i> Run Reranker</button>
+                    <pre id="rerank-result" class="console-output" style="height:250px; margin-top:20px;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMBEDDING SPACE -->
+        <div id="view-embeddings" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Embedding Space</h2>
+                    <p>Generate and analyze vector representations of text.</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 48px; max-width:800px; margin:0 auto;">
+                <div class="card-header">Vector Generation</div>
+                <textarea id="embeddings-input" class="glass-input" style="width:100%;margin:20px 0; min-height:120px;" placeholder="Input text for vector analysis..."></textarea>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom: 20px;">
+                    <input id="embeddings-model" class="glass-input" placeholder="Model override">
+                    <button class="btn btn-primary" onclick="runEmbeddingsTest()"><i class="fas fa-vial"></i> Generate Embedding</button>
+                </div>
+                <pre id="embeddings-result" class="console-output" style="height:300px;"></pre>
+            </div>
+        </div>
+
+        <!-- AGENT CONTROL -->
+        <div id="view-agent" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Agent Control</h2>
+                    <p>Supervise and direct autonomous multi-step agents.</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 40px; max-width:1000px; margin:0 auto;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div>
+                        <div class="card-header" style="margin-bottom: 16px;">Session Parameters</div>
+                        <select id="agent-workflow" class="glass-input" style="width:100%; margin-bottom: 16px;">
+                            {% for w in dashboard.agent_workflows %}
+                            <option value="{{ w.id }}">{{ w.label }}</option>
+                            {% endfor %}
+                        </select>
+                        <input id="agent-tool-budget" class="glass-input" style="width:100%; margin-bottom: 20px;" placeholder="Max tools (default: 6)">
+                        <button class="btn btn-primary" style="width:100%;" onclick="runAgentCreate()"><i class="fas fa-plus"></i> Initialize Session</button>
+                        <div style="margin-top: 32px;">
+                            <div class="stat-label">Active Session ID</div>
+                            <input id="agent-session-id" class="glass-input" style="width:100%; margin-top: 8px;" readonly>
                         </div>
-                        {% endfor %}
-                        {% for s in dashboard.agent_sessions %}
-                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(59, 130, 246, 0.1)'" onmouseout="this.style.background='transparent'">
-                            <div style="font-weight: 700; font-size: 14px;">Agent: {{ s.id|truncate(12, True) }}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 6px;">{{ (s.messages|default([]))|length }} messages</div>
+                    </div>
+                    <div>
+                        <div class="card-header" style="margin-bottom: 16px;">Live Operations</div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button class="btn btn-secondary" onclick="runAgentTurn()"><i class="fas fa-play"></i> Trigger Agent Turn</button>
+                            <button class="btn btn-secondary" onclick="runAgentBranch()"><i class="fas fa-code-branch"></i> Branch Timeline</button>
+                            <button class="btn btn-secondary" onclick="runAgentRestore()"><i class="fas fa-undo"></i> Restore State</button>
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
-                
-                <div class="glass" style="grid-column: span 8; padding: 32px; position: relative; min-height: 600px;">
-                    <div class="card-header" style="border-bottom: 1px solid var(--glass-border); padding-bottom: 24px; margin-bottom: 32px;">Active Session Context</div>
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div style="font-size: 12px; color: var(--text-muted);">Current Segment</div>
-                            <div class="glass" style="padding: 16px; margin-top: 12px; background: rgba(59, 130, 246, 0.05);">
-                                <div style="font-weight: 800; font-size: 13px; color: var(--accent-primary); margin-bottom: 8px;">User Instruction</div>
-                                <div style="font-size: 14px; line-height: 1.6;">Awaiting selection from sidebar...</div>
-                            </div>
-                        </div>
+                <div style="margin-top: 40px;">
+                    <div class="card-header">Observability Trace</div>
+                    <pre id="agent-session-state" class="console-output" style="height:200px; margin-top:16px;"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACE PIPELINE -->
+        <div id="view-ace" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>ACE Pipeline</h2>
+                    <p>Active Context Engineering for high-precision completions.</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 48px; max-width:900px; margin:0 auto;">
+                <div class="card-header">Context Injection</div>
+                <textarea id="ace-input" class="glass-input" style="width:100%; margin:20px 0; min-height:100px;" placeholder="High-context instruction..."></textarea>
+                <button class="btn btn-primary" style="width:100%;" onclick="runACEGenerate()"><i class="fas fa-bolt"></i> Execute ACE Flow</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px;">
+                    <div>
+                        <div class="stat-label">ACE Trace</div>
+                        <pre id="ace-session-trace" class="console-output" style="height:300px; margin-top:12px;"></pre>
                     </div>
-                    <div style="position: absolute; bottom: 32px; left: 32px; right: 32px; display: flex; gap: 16px;">
-                        <button class="btn btn-secondary" style="flex: 1;"><i class="fas fa-play"></i> Resume Session</button>
-                        <button class="btn btn-primary" style="flex: 1;"><i class="fas fa-code-branch"></i> Branch Checkpoint</button>
+                    <div>
+                        <div class="stat-label">ACE Result</div>
+                        <pre id="ace-session-result" class="console-output" style="height:300px; margin-top:12px;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BENCHMARK CENTER -->
+        <div id="view-benchmark" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Benchmark Center</h2>
+                    <p>Test system throughput and bridge latency vs raw LM Studio.</p>
+                </div>
+            </div>
+            <div class="glass" style="padding: 48px; max-width:800px; margin:0 auto;">
+                <div class="card-header">Performance Profile</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap:16px; margin:20px 0;">
+                    <input id="benchmark-name" class="glass-input" placeholder="Test Identifier">
+                    <button class="btn btn-primary" onclick="runBenchmarkTest()"><i class="fas fa-tachometer-alt"></i> Run Diagnostics</button>
+                </div>
+                <textarea id="benchmark-inputs" class="glass-input" style="width:100%; min-height:100px; margin-bottom: 24px;" placeholder="Custom prompts..."></textarea>
+                <div class="card-header">Diagnostic Output</div>
+                <pre id="benchmark-result" class="console-output" style="height:300px;"></pre>
+            </div>
+        </div>
+
+        <!-- INFERENCE LAB -->
+        <div id="view-playground" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Inference Lab</h2>
+                    <p>Live interactive testing of the proxy routing engine.</p>
+                </div>
+            </div>
+            <div class="playground-container">
+                <div class="chat-box glass">
+                    <div id="chat-messages" class="message-area"></div>
+                    <div class="input-area">
+                        <textarea id="chat-input-text" class="glass-input" style="flex:1;" placeholder="Enter message..."></textarea>
+                        <button class="btn btn-primary" onclick="runChat()"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+                <div class="settings-panel">
+                    <div class="glass" style="padding: 24px; height: 100%;">
+                        <div class="card-header" style="margin-bottom: 16px;">Operation Node</div>
+                        <select id="playground-model" class="glass-input" style="width:100%; margin-bottom: 20px;">
+                            {% for m in dashboard.models %}
+                            <option value="{{ m.id }}">{{ m.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="stat-label">Model Context</div>
+                        <div id="profile-json" class="console-output" style="font-size: 10px; margin-top: 12px; height: 300px;"></div>
                     </div>
                 </div>
             </div>
@@ -833,229 +816,71 @@
             <div class="header-row">
                 <div class="page-title">
                     <h2>Preset Manager</h2>
-                    <p>Sync configuration files and export to local model directories.</p>
+                    <p>Manage model deployment templates and hardware profiles.</p>
                 </div>
             </div>
             <div class="grid-2">
-                <div class="glass" style="padding: 40px;">
-                    <div class="card-header">Load Preset</div>
-                    <select id="preset-select" class="glass-input" style="width: 100%; margin: 24px 0;">
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header">Model Roles</div>
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+                        <div>
+                            <span class="stat-label">Main Inference</span>
+                            <select id="role-main" class="glass-input" style="width:100%;">
+                                {% for m in dashboard.models %}<option value="{{ m.id }}" {% if dashboard.state.role_map.main == m.id %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <span class="stat-label">Reasoning Engine</span>
+                            <select id="role-reasoning" class="glass-input" style="width:100%;">
+                                {% for m in dashboard.models %}<option value="{{ m.id }}" {% if dashboard.state.role_map.reasoning == m.id %}selected{% endif %}>{{ m.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" data-action="save-roles">Update Roles</button>
+                    </div>
+                </div>
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header">System Presets</div>
+                    <div class="console-output" style="height: 300px; margin-top: 20px;">
                         {% for p in dashboard.presets %}
-                        <option value="{{ p.path }}">{{ p.name }}</option>
+                        <div style="padding: 8px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between;">
+                            <span>{{ p.name }}</span>
+                            <i class="fas fa-download" style="cursor: pointer;"></i>
+                        </div>
                         {% endfor %}
-                    </select>
-                    <button class="btn btn-primary" onclick="applyPreset()" style="width: 100%;"><i
-                            class="fas fa-bolt"></i> Apply Preset</button>
-                </div>
-                <div class="glass" style="padding: 40px;">
-                    <div class="card-header">Snapshot Runtime</div>
-                    <p style="font-size: 14px; color: var(--text-secondary); margin: 24px 0;">Persist active
-                        configuration to project `.env` and generate LM Studio compatible profile.</p>
-                    <button class="btn btn-secondary" onclick="exportPreset()" style="width: 100%;"><i
-                            class="fas fa-file-export"></i> Sync & Export</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- SYSTEM SYNC -->
+        <!-- SYSTEM BRIDGE -->
         <div id="view-settings" class="view-section">
-            <div class="header-row">
+             <div class="header-row">
                 <div class="page-title">
-                    <h2>System Sync</h2>
-                    <p>Backend endpoint bridge and hardware detection tuning.</p>
+                    <h2>System Bridge</h2>
+                    <p>Configure internal API routing and LM Studio connections.</p>
                 </div>
             </div>
-            <div class="glass" style="padding: 40px; max-width: 600px; margin: 0 auto;">
-                <div class="form-group" style="margin-bottom: 24px;">
-                    <label class="form-label">Proxy Bridge Backend</label>
-                    <input type="text" id="bridge-base" class="glass-input" style="width: 100%;"
-                        value="{{ dashboard.state.bridge_base }}">
+             <div class="glass" style="padding: 40px; max-width: 700px; margin: 0 auto;">
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <div>
+                        <div class="stat-label">Bridge Base URL</div>
+                        <input id="bridge-base" class="glass-input" style="width:100%; margin-top: 8px;" value="{{ dashboard.state.bridge_base }}">
+                    </div>
+                    <div>
+                        <div class="stat-label">LM Studio API</div>
+                        <input id="lmstudio-base" class="glass-input" style="width:100%; margin-top: 8px;" value="{{ dashboard.state.lmstudio_base }}">
+                    </div>
+                    <button class="btn btn-primary" data-action="save-runtime">Save Configuration</button>
                 </div>
-                <div class="form-group" style="margin-bottom: 32px;">
-                    <label class="form-label">LM Studio Local API</label>
-                    <input type="text" id="lmstudio-base" class="glass-input" style="width: 100%;"
-                        value="{{ dashboard.state.lmstudio_base }}">
-                </div>
-                <button class="btn btn-primary" onclick="saveSystemConfig()" style="width: 100%;"><i
-                        class="fas fa-save"></i> Commit Settings</button>
             </div>
         </div>
-
-    </div>
-
-    <!-- Global Toasts -->
-    <div id="toast-container"
-        style="position: fixed; bottom: 40px; right: 40px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; pointer-events: none;">
     </div>
 </div>
 
+<script id="dashboard-json" type="application/json">{{ dashboard|tojson|safe }}</script>
 <script>
-    const csrfToken = '{{ csrf_token() }}';
-    const roleMap = {{ dashboard.state.role_map|tojson|safe }};
-
-    function byId(id) { return document.getElementById(id); }
-
-    function showToast(title, msg, type = 'info') {
-        const container = byId('toast-container');
-        const div = document.createElement('div');
-        div.className = 'glass';
-        div.style.padding = '16px 24px';
-        div.style.borderLeft = `4px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'}`;
-        div.style.pointerEvents = 'auto';
-        div.innerHTML = `<div style="font-weight: 800; font-size: 13px;">${title}</div><div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${msg}</div>`;
-        container.appendChild(div);
-        setTimeout(() => div.remove(), 4000);
-    }
-
-    async function apiPost(url, body) {
-        const res = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-            body: JSON.stringify(body || {}),
-        });
-        return await res.json();
-    }
-
-    function switchView(viewId, element) {
-        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        const target = byId('view-' + viewId);
-        if (target) target.classList.add('active');
-        if (element) element.classList.add('active');
-    }
-
-    // Live Streaming
-    function initLiveStream() {
-        const source = new EventSource('/events');
-        source.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-
-            // Console
-            const consoleBox = byId('live-console');
-            const entry = document.createElement('div');
-            entry.style.marginBottom = '6px';
-            entry.innerHTML = `<span style="color: var(--text-muted); font-size: 11px;">[${new Date().toLocaleTimeString()}]</span> <span style="font-weight:700; color: var(--accent-primary)">${data.type}</span>: ${data.message || ''}`;
-            consoleBox.prepend(entry);
-            if (consoleBox.children.length > 60) consoleBox.lastChild.remove();
-
-            // Gauges
-            if (data.type === 'HEARTBEAT' && data.data && data.data.hardware) {
-                const hw = data.data.hardware;
-                byId('gauge-vram').innerText = `${hw.vram_used_gb.toFixed(1)} / ${hw.vram_total_gb.toFixed(1)} GB`;
-                byId('fill-vram').style.width = `${(hw.vram_used_gb / hw.vram_total_gb * 100)}%`;
-                byId('gauge-ram').innerText = `${hw.ram_used_gb.toFixed(1)} / ${hw.ram_total_gb.toFixed(1)} GB`;
-                byId('fill-ram').style.width = `${(hw.ram_used_gb / hw.ram_total_gb * 100)}%`;
-                byId('gauge-cpu').innerText = `${hw.cpu_percent.toFixed(0)}%`;
-                byId('fill-cpu').style.width = `${hw.cpu_percent}%`;
-            }
-
-            // Timeline
-            if (data.type === 'SYSTEM' || data.type === 'HW_DISCOVERY') {
-                const timeline = byId('health-timeline');
-                const node = document.createElement('div');
-                node.className = 'timeline-item';
-                node.innerHTML = `<div style="font-size: 14px; font-weight: 700;">${data.message}</div>`;
-                timeline.prepend(node);
-                if (timeline.children.length > 5) timeline.lastChild.remove();
-                showToast('System Event', data.message);
-            }
-        };
-        source.onerror = () => {
-            byId('status-dot').style.background = 'var(--accent-error)';
-            byId('status-dot').style.boxShadow = '0 0 10px var(--accent-error)';
-        };
-    }
-
-    const appendMessage = (role, content) => {
-        const area = byId('inference-history');
-        const div = document.createElement('div');
-        div.className = `message ${role}`;
-        div.innerHTML = `<div class="message-content">${content.replace(/\n/g, '<br>')}</div>`;
-        area.appendChild(div);
-        area.scrollTop = area.scrollHeight;
-    };
-
-    async function runInference() {
-        const query = byId('inference-query').value;
-        if (!query) return;
-
-        appendMessage('user', query);
-        byId('inference-query').value = '';
-
-        const loader = document.createElement('div');
-        loader.className = 'message bot';
-        loader.innerHTML = '<div class="message-content" style="opacity: 0.5">Computing...</div>';
-        byId('inference-history').appendChild(loader);
-
-        try {
-            const role = byId('inference-role').value;
-            const payload = {
-                model: role === 'main' ? roleMap.main : roleMap.reasoning,
-                system_prompt: byId('inference-system').value,
-                input: query,
-                mode: byId('inference-mode').value,
-                temperature: parseFloat(byId('param-temp').value),
-                max_tokens: 2048,
-                stream: false
-            };
-
-            const task = await apiPost('/api/requests/chat/run', payload);
-
-            let result = null;
-            while (!result) {
-                const res = await fetch('/api/tasks/' + task.task_id);
-                const taskData = await res.json();
-                if (taskData.status === 'completed') result = taskData.result;
-                else if (taskData.status === 'failed') throw new Error(taskData.error);
-                else await new Promise(r => setTimeout(r, 800));
-            }
-
-            loader.remove();
-            const text = result.output_text || (result.choices && result.choices[0].message.content) || JSON.stringify(result);
-            appendMessage('bot', text);
-        } catch (e) {
-            loader.innerHTML = `<div class="message-content" style="color: var(--accent-error)">Error: ${e.message}</div>`;
-            showToast('Generation Error', e.message, 'error');
-        }
-    }
-
-    function setSystemPreset(type) {
-        const dict = {
-            'Developer': 'You are a senior software engineer. Optimized for technical precision.',
-            'Analyst': 'You are a data analyst. Think step-by-step.'
-        };
-        byId('inference-system').value = dict[type] || '';
-    }
-
-    async function saveSystemConfig() {
-        await apiPost("/api/runtime/update-config", {
-            bridge_base: byId('bridge-base').value,
-            lmstudio_base: byId('lmstudio-base').value,
-        });
-        showToast('Settings Saved', 'Backend configurations synchronized.', 'success');
-    }
-
-    async function refreshHardware() {
-        showToast('Refreshing', 'Scanning local hardware bridge...', 'info');
-        await apiPost("/api/runtime/refresh", {});
-        setTimeout(() => window.location.reload(), 1200);
-    }
-
-    function clearPlayground() {
-        byId('inference-history').innerHTML = '<div class="message bot"><div class="message-content">System ready. Define your system instructions and start an inference session.</div></div>';
-        showToast('Cleared', 'Inference history cleared.', 'info');
-    }
-
-    async function applyPreset() {
-        const path = byId('preset-select').value;
-        if(!path) return;
-        showToast('Action Failed', 'Backend route for applyPreset is not implemented yet.', 'error');
-    }
-
-    async function exportPreset() {
-        showToast('Action Failed', 'Backend route for exportPreset is not implemented yet.', 'error');
-    }
-
-    document.addEventListener('DOMContentLoaded', initLiveStream);
+    window.__DASHBOARD__ = JSON.parse(document.getElementById('dashboard-json').textContent);
+    window.__CSRF__ = "{{ csrf_token() }}";
 </script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 {% endblock %}

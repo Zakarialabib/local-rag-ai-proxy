@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import json
-from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List
+import numpy as np
+from typing import Any, AsyncIterator, Awaitable, Callable, Dict, List, Optional
 
 import httpx
 
@@ -9,6 +8,7 @@ from shared.ace.context_injector import RealTimeContextInjector
 from shared.ace.formatters.continue_ace import ContinueACEFormatter
 from shared.ace.pattern_detector import StreamingPatternDetector
 from shared.ace.qwen_tool_native import QwenToolNativeHandler
+from shared.ace.reflector import ACEReflector
 from shared.ace.session_store import ACESession, ACESessionStore, utc_ts
 from shared.ace.stream_brancher import StreamBranchingEngine
 from shared.agent_tools import AgentToolRegistry
@@ -34,6 +34,8 @@ class ACEOrchestrator:
         self.injector = RealTimeContextInjector(tool_registry.bridge_base)
         self.brancher = StreamBranchingEngine()
         self.tool_handler = QwenToolNativeHandler(tool_registry)
+        self.embed_func: Optional[Callable] = None
+        self.reflector = ACEReflector(session_store.root.parent / "ace_playbooks")
 
     def create_session(self, *, prompt: str, mode: str, model: str, role_map: Dict[str, str], docs: List[str]) -> ACESession:
         return self.session_store.create_session(prompt=prompt, mode=mode, model=model, role_map=role_map, docs=docs)
@@ -195,7 +197,23 @@ class ACEOrchestrator:
                             session_context={"cwd": request.get("cwd", ""), "session_id": session.id, "agent": "ace"},
                         )
                         for result in results:
+                            # RECURSIVE VALIDATION
+                            if self.embed_func and "result" in result:
+                                content = str(result["result"])
+                                # Compare against first tool call's intent if available
+                                intent = tool_calls[0].get("name", "tool usage") if tool_calls else "tool usage"
+                                try:
+                                    embs = await self.embed_func([intent, content[:1500]])
+                                    if len(embs) >= 2:
+                                        vec_a = embs[0] / (np.linalg.norm(embs[0]) + 1e-9)
+                                        vec_b = embs[1] / (np.linalg.norm(embs[1]) + 1e-9)
+                                        score = float(np.dot(vec_a, vec_b))
+                                        result["validation"] = {"score": score, "status": "passed" if score > 0.35 else "drift"}
+                                except: pass
+
                             payload = {"tool": result["tool"], "result": result["result"]}
+                            if result.get("validation"):
+                                payload["validation"] = result["validation"]
                             self.session_store.append_trace(session.id, {"ts": utc_ts(), "type": "tool_result", "data": payload})
                             yield self._event("tool_result", payload, session.id)
 
@@ -204,6 +222,11 @@ class ACEOrchestrator:
         session.reasoning_text = "".join(reasoning_chunks)
         session.metadata["interventions"] = len(interventions)
         self.session_store.save_session(session)
+        
+        # REFLECTION: Update playbooks based on session success
+        if self.reflector:
+            import asyncio
+            asyncio.create_task(self.reflector.reflect_on_session(session.id, session.trace, session.final_text))
         final = ContinueACEFormatter.create_final_response(
             session_id=session.id,
             content=session.final_text,

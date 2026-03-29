@@ -114,4 +114,52 @@ WORKSPACE_PRESETS = [
             "stream": False,
         },
     },
+    {
+        "id": "high_recall_rag",
+        "label": "Preset D: High-Recall RAG",
+        "target_use_case": "retrieval",
+        "notes": [
+            "Optimized for deep retrieval tasks where missing information is costly.",
+            "Higher retrieval_top_k and larger chunk_size for context.",
+        ],
+        "responses": {
+            "mode": "think",
+            "reasoning_effort": "high",
+            "temperature": 0.4,
+            "retrieval_top_k": 8,
+            "chunk_size": 1200,
+            "chunk_overlap": 200,
+            "max_output_tokens": 2048,
+        },
+        "chat": {
+            "mode": "think",
+            "temperature": 0.4,
+            "max_tokens": 2048,
+            "stream": True,
+        },
+    },
+    {
+        "id": "precision_rerank",
+        "label": "Preset E: Precision Rerank",
+        "target_use_case": "retrieval",
+        "notes": [
+            "Focused on reranking and reasoning over retrieved chunks.",
+            "Uses a smaller top_k with stronger reranking models for accuracy.",
+        ],
+        "responses": {
+            "mode": "think",
+            "reasoning_effort": "medium",
+            "temperature": 0.1,
+            "retrieval_top_k": 3,
+            "chunk_size": 600,
+            "chunk_overlap": 100,
+            "max_output_tokens": 1024,
+        },
+        "chat": {
+            "mode": "think",
+            "temperature": 0.1,
+            "max_tokens": 1024,
+            "stream": True,
+        },
+    },
 ]

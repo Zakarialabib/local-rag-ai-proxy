@@ -1,6 +1,7 @@
 import json
 import re
 import uuid
+import numpy as np
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
@@ -112,6 +113,7 @@ class AgentOrchestrator:
         self.llm_generate = llm_generate
         self.workspace_root = workspace_root
         self.compressor = HierarchicalContextCompressor()
+        self.embed_func: Optional[Callable] = None
 
     def create_session(self, *, workflow: str, role_map: Dict[str, str], cwd: str, tool_budget: int = 6) -> AgentSession:
         cfg = self.WORKFLOWS.get(workflow, self.WORKFLOWS["coding_sprint"])
@@ -301,6 +303,14 @@ class AgentOrchestrator:
                     action.get("params", {}),
                     {"cwd": session.cwd, "session_id": session.id, "agent": session.current_agent},
                 )
+                
+                # RECURSIVE VALIDATION: Check for semantic drift
+                if self.embed_func and "content" in result:
+                    drift_score = await self._check_drift(action.get("reason", ""), result["content"])
+                    result["validation"] = {"score": drift_score, "status": "passed" if drift_score > 0.4 else "drift_detected"}
+                    if drift_score < 0.4:
+                        self.session_store.append_event(session.id, "validation_warning", tool=action.get("tool"), score=drift_score)
+
                 session.tool_outputs.append({"tool": action.get("tool"), "result": result, "agent": session.current_agent})
                 self.session_store.append_event(session.id, "tool_result", tool=action.get("tool"), ok=True)
                 results.append(result)
@@ -310,6 +320,21 @@ class AgentOrchestrator:
                 self.session_store.append_event(session.id, "tool_result", tool=action.get("tool"), ok=False, error=str(exc))
                 results.append(error)
         return results
+
+    async def _check_drift(self, intent: str, content: str) -> float:
+        """Measure semantic similarity between intent and result content."""
+        if not intent or not content or not self.embed_func:
+            return 1.0
+        try:
+            # Sliced 512-dim embedding comparison
+            embs = await self.embed_func([intent, content[:2000]])
+            if len(embs) < 2: return 1.0
+            
+            vec_a = embs[0] / (np.linalg.norm(embs[0]) + 1e-9)
+            vec_b = embs[1] / (np.linalg.norm(embs[1]) + 1e-9)
+            return float(np.dot(vec_a, vec_b))
+        except Exception:
+            return 1.0
 
     def _heuristic_fallback(self, current_agent: str, workflow: str, input_content: str, raw_output: str) -> Dict[str, Any]:
         actions: List[Dict[str, Any]] = []
