@@ -25,12 +25,19 @@ from tuner import AdaptiveTuner
 from cache_manager import CacheManager
 from domain_router import DomainRouter
 from context_manager import ContextManager
-from lmstudio_bridge import LMStudioBridge, RetrievalConfig, ChunkingConfig
+from lmstudio_bridge import (
+    LMStudioBridge,
+    RetrievalConfig,
+    ChunkingConfig,
+    clean_bridge_host,
+    clean_bridge_port,
+)
 from exporters import ConfigExporter
 from shared.ace import ACEOrchestrator, ACESessionStore
 from shared.agent_orchestrator import AgentOrchestrator
 from shared.agent_state import AgentSessionStore
 from shared.agent_tools import AgentToolRegistry
+from shared.mcp_host import MCPHost
 from datetime import datetime
 from logger_config import setup_logger, setup_structlog, log_api_error, error_to_dict
 
@@ -38,47 +45,21 @@ from logger_config import setup_logger, setup_structlog, log_api_error, error_to
 logger = setup_structlog("proxy")
 
 
-def _clean_env_model(value: str, default: str) -> str:
-    text = str(value or default).strip()
-    match = re.search(r"model_key='([^']+)'", text)
-    if match:
-        return match.group(1)
-    return text
-
-
-def _clean_bridge_host(value: str) -> str:
-    text = str(value or "").strip()
-    if not text:
-        return "127.0.0.1"
-    if "://" in text:
-        parsed = urlparse(text)
-        return parsed.hostname or "127.0.0.1"
-    return text.split(":", 1)[0] or "127.0.0.1"
-
-
-def _clean_bridge_port(value: str, default: int = 8080) -> int:
-    text = str(value or "").strip()
-    if not text:
-        return default
-    if "://" in text:
-        parsed = urlparse(text)
-        return parsed.port or default
-    try:
-        return int(text)
-    except Exception:
-        try:
-            return int(text.rsplit(":", 1)[1])
-        except Exception:
-            return default
-
-EMBED_MODEL = _clean_env_model(os.getenv("EMBED_MODEL"), "text-embedding-qwen3-embedding-4b")
-RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), "qwen.qwen3-reranker-4b")
-MAIN_MODEL = _clean_env_model(os.getenv("MAIN_MODEL"), "qwen3.5-4b")
-REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), "qwen3.5-4b")
+EMBED_MODEL = LMStudioBridge.extract_model_key(os.getenv("EMBED_MODEL") or "text-embedding-qwen3-embedding-4b")
+RERANK_MODEL = LMStudioBridge.extract_model_key(os.getenv("RERANK_MODEL") or "qwen.qwen3-reranker-4b")
+MAIN_MODEL = LMStudioBridge.extract_model_key(os.getenv("MAIN_MODEL") or "qwen3.5-4b")
+REASONING_MODEL = LMStudioBridge.extract_model_key(os.getenv("REASONING_MODEL") or "qwen3.5-4b")
 RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "3"))
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "900"))
 DEFAULT_CHUNK_OVERLAP = int(os.getenv("DEFAULT_CHUNK_OVERLAP", "150"))
 AUTO_LOAD_MODELS = os.getenv("AUTO_LOAD_MODELS", "true").lower() in {"1", "true", "yes", "on"}
+
+
+def _clean_env_model(val: Optional[str], default: str) -> str:
+    """Helper to clean and resolve model IDs from environment variables."""
+    if not val:
+        return default
+    return LMStudioBridge.extract_model_key(val)
 
 
 # Cache to track recent requests
@@ -112,6 +93,7 @@ class OptimizingProxy:
         self.cache = CacheManager()
         self.router = DomainRouter()
         self.context = ContextManager()
+        self.mcp = MCPHost()
         self.bridge = LMStudioBridge(
             base_url=self.lmstudio_base,
             embed_model=EMBED_MODEL,
@@ -124,6 +106,9 @@ class OptimizingProxy:
             loop = asyncio.get_event_loop()
             self.hardware = await loop.run_in_executor(None, self.detector.detect)
             self.engine = RecommendationEngine(self.hardware)
+            # Update tuner VRAM for scheduling
+            if self.hardware and self.hardware.gpu_vram_gb:
+                self.tuner.scheduler.vram_gb = self.hardware.gpu_vram_gb
         return self.hardware
 
     async def optimize_request(self, body: Dict[str, Any], domain: str) -> Dict[str, Any]:
@@ -213,7 +198,7 @@ class OptimizingProxy:
         return body
                 
 proxy = OptimizingProxy()
-BRIDGE_BASE_URL = f"http://{_clean_bridge_host(os.getenv('BRIDGE_HOST', '127.0.0.1'))}:{_clean_bridge_port(os.getenv('BRIDGE_PORT', '8080'))}"
+BRIDGE_BASE_URL = f"http://{clean_bridge_host(os.getenv('BRIDGE_HOST', '127.0.0.1'))}:{clean_bridge_port(os.getenv('BRIDGE_PORT', '8080'))}"
 agent_session_store = AgentSessionStore(Path(".gui_state") / "agent_sessions")
 ace_session_store = ACESessionStore(Path(".gui_state") / "ace_sessions")
 agent_tool_registry = AgentToolRegistry(root_dir=Path.cwd(), bridge_base=BRIDGE_BASE_URL)
@@ -228,7 +213,11 @@ async def _agent_llm_generate(model_id: str, messages: list[dict], options: Dict
         "temperature": 0.2,
         "extra_body": {"mode": options.get("mode", "fast")},
     }
-    user_content = "\n".join(msg.get("content", "") for msg in messages if msg.get("role") == "user")
+    user_content = "\n".join(
+        proxy.bridge.extract_text_from_content(msg.get("content"))
+        for msg in messages
+        if msg.get("role") == "user"
+    )
     domain = proxy.router.detect_domain(user_content)
     optimized_body = await proxy.optimize_request(body, domain)
     async with httpx.AsyncClient(timeout=None) as client:
@@ -263,6 +252,7 @@ agent_orchestrator = AgentOrchestrator(
     llm_generate=_agent_llm_generate,
     workspace_root=Path.cwd(),
 )
+agent_orchestrator.embed_func = proxy.bridge.embed_texts
 
 
 async def _ace_prepare_body(body: Dict[str, Any], domain: str) -> Dict[str, Any]:
@@ -275,6 +265,7 @@ ace_orchestrator = ACEOrchestrator(
     lmstudio_base=proxy.lmstudio_base,
     prepare_body=_ace_prepare_body,
 )
+ace_orchestrator.embed_func = proxy.bridge.embed_texts
 
 async def watch_env_file():
     env_path = Path(".env")
@@ -296,13 +287,13 @@ async def watch_env_file():
                 REASONING_MODEL = _clean_env_model(os.getenv("REASONING_MODEL"), REASONING_MODEL)
                 EMBED_MODEL = _clean_env_model(os.getenv("EMBED_MODEL"), EMBED_MODEL)
                 RERANK_MODEL = _clean_env_model(os.getenv("RERANK_MODEL"), RERANK_MODEL)
-                RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", str(RERANK_TOP_K)))
+                RERANK_TOP_K = int(os.getenv("RERANK_TOP_K") or str(RERANK_TOP_K))
                 
                 # Update bridge explicitly
                 proxy.bridge.embed_model = EMBED_MODEL
                 proxy.bridge.rerank_model = RERANK_MODEL
                 
-                logger.info("config_reloaded", main=MAIN_MODEL, reasoning=REASONING_MODEL, embed=EMBED_MODEL, rerank=RERANK_MODEL)
+                logger.info("reloaded_config", main=MAIN_MODEL, reasoning=REASONING_MODEL, embed=EMBED_MODEL, rerank=RERANK_MODEL)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -676,7 +667,14 @@ async def proxy_responses(request: Request):
         for msg in completion_body.get("messages", [])
         if msg.get("role") == "user"
     )
-    domain = proxy.router.detect_domain(user_content)
+    domain = await proxy.router.detect_domain_semantic(user_content, proxy.bridge.embed_texts)
+    
+    # Predictive Scheduling: Check if unloads are needed
+    model_id = completion_body.get("model", MAIN_MODEL)
+    unload_candidates = await proxy.tuner.check_scheduling(model_id)
+    if unload_candidates:
+        for m_id in unload_candidates:
+            await proxy.bridge.unload_model(m_id)
     optimized_body = await proxy.optimize_request(completion_body, domain)
 
     retrieval_sources = []
@@ -733,12 +731,19 @@ async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
     body = await request.json()
     is_streaming = body.get("stream", False)
     
-    # Detect domain
-    user_content = ""
-    for msg in body.get("messages", []):
-        if msg.get("role") == "user":
-            user_content += msg.get("content", "")
-    domain = proxy.router.detect_domain(user_content)
+    user_content = "\n".join(
+        proxy.bridge.extract_text_from_content(msg.get("content"))
+        for msg in body.get("messages", [])
+        if msg.get("role") == "user"
+    )
+    domain = await proxy.router.detect_domain_semantic(user_content, proxy.bridge.embed_texts)
+    
+    # Predictive Scheduling: Check if unloads are needed
+    model_id = body.get("model", MAIN_MODEL)
+    unload_candidates = await proxy.tuner.check_scheduling(model_id)
+    if unload_candidates:
+        for m_id in unload_candidates:
+            await proxy.bridge.unload_model(m_id)
     
     # Check response cache
     cache_key = proxy.cache.build_cache_key(body)
@@ -768,14 +773,16 @@ async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
         return None, None
 
     async def stream_response():
+        # PROGRESSIVE DISCLOSURE: Emit first status
+        yield f"event: cognitive_routing\ndata: {json.dumps({'status': f'Task classified as {domain}', 'mode': domain})}\n\n".encode()
+
         full_chunks = []
         reasoning_chunks = []
         current_event = None
+        last_metadata = {}
 
         async with httpx.AsyncClient(timeout=None) as client:
             try:
-                # We forward tool-related parameters seamlessly to LM Studio
-                # structured outputs (response_format) are also passed transparently.
                 async with client.stream(
                     "POST",
                     f"{proxy.lmstudio_base}/v1/chat/completions",
@@ -783,15 +790,10 @@ async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
                     headers={"Content-Type": "application/json"}
                 ) as response:
                     async for raw_line in response.aiter_lines():
-                        if not raw_line:
-                            continue
-
+                        if not raw_line: continue
                         stripped = raw_line.strip()
-                        if not stripped:
-                            continue
-
-                        if stripped == "[DONE]":
-                            break
+                        if not stripped: continue
+                        if stripped == "[DONE]": break
 
                         if stripped.startswith("event: "):
                             current_event = stripped[7:].strip()
@@ -799,11 +801,8 @@ async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
 
                         if stripped.startswith("data: "):
                             data_str = stripped[6:].strip()
-                            if not data_str:
+                            if not data_str or data_str == "[DONE]":
                                 current_event = None
-                                continue
-
-                            if data_str == "[DONE]":
                                 break
 
                             try:
@@ -816,70 +815,70 @@ async def proxy_chat(request: Request, background_tasks: BackgroundTasks):
                                 current_event = None
                                 continue
 
-                            # Standard OpenAI stream behavior (no `event:` line emitted by LM Studio for these)
-                            if current_event is None and "choices" in data:
-                                choices = data.get("choices")
-                                if choices and len(choices) > 0:
-                                    delta = choices[0].get("delta", {})
-                                    if isinstance(delta, dict):
-                                        if delta.get("content") is not None:
-                                            content = delta["content"]
-                                            full_chunks.append(content)
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'content': content}}]})}\n".encode()
-                                        if delta.get("reasoning_content") is not None:
-                                            rc = delta["reasoning_content"]
-                                            reasoning_chunks.append(rc)
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'reasoning_content': rc}}]})}\n".encode()
-                                        if delta.get("tool_calls"):
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'tool_calls': delta['tool_calls']}}]})}\n".encode()
-                                current_event = None
-                                continue
+                            # Capture and reuse metadata for standard OpenAI chunks
+                            if not last_metadata and "id" in data:
+                                last_metadata = {
+                                    "id": data.get("id"),
+                                    "object": data.get("object", "chat.completion.chunk"),
+                                    "created": data.get("created"),
+                                    "model": data.get("model", optimized_body.get("model")),
+                                    "system_fingerprint": data.get("system_fingerprint")
+                                }
 
-                            # Route based on the precise LM Studio event type
-                            if current_event == "chat.start":
-                                # Nothing to yield specifically, but we could initialize state
-                                pass
-
-                            elif current_event == "message.delta":
-                                choices = data.get("choices")
-                                if choices and len(choices) > 0:
-                                    delta = choices[0].get("delta", {})
-                                    if isinstance(delta, dict):
-                                        if delta.get("content") is not None:
-                                            content = delta["content"]
-                                            full_chunks.append(content)
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'content': content}}]})}\n".encode()
-                                        if delta.get("reasoning_content") is not None:
-                                            rc = delta["reasoning_content"]
-                                            reasoning_chunks.append(rc)
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'reasoning_content': rc}}]})}\n".encode()
-                                        if delta.get("tool_calls"):
-                                            # Forward tool call deltas as they are
-                                            yield f"data: {json.dumps({'choices':[{'delta':{'tool_calls': delta['tool_calls']}}]})}\n".encode()
+                            # Prepare a base chunk with metadata
+                            base_chunk = dict(last_metadata)
+                            
+                            # Route based on presence of choices or explicit event type
+                            choices = data.get("choices", [])
+                            if choices and len(choices) > 0:
+                                delta = choices[0].get("delta", {})
+                                if isinstance(delta, dict):
+                                    content = delta.get("content")
+                                    rc = delta.get("reasoning_content")
+                                    tc = delta.get("tool_calls")
+                                    
+                                    if content is not None: full_chunks.append(content)
+                                    if rc is not None: reasoning_chunks.append(rc)
+                                    
+                                    # Forward structured delta
+                                    base_chunk["choices"] = [{
+                                        "index": 0,
+                                        "delta": delta,
+                                        "finish_reason": choices[0].get("finish_reason")
+                                    }]
+                                    yield f"data: {json.dumps(base_chunk)}\n\n".encode()
 
                             elif current_event == "reasoning.delta":
-                                # Native LM Studio reasoning format
+                                # Handle native LM Studio reasoning event
                                 rc = data.get("content", "")
                                 if rc:
                                     reasoning_chunks.append(rc)
-                                    yield f"data: {json.dumps({'choices':[{'delta':{'reasoning_content': rc}}]})}\n".encode()
-
-                            elif current_event in ("tool_call.start", "tool_call.arguments", "tool_call.success", "tool_call.failure"):
-                                # If using native LM Studio events instead of OpenAI format
-                                # For OpenAI compatibility, we wrap these into tool_calls format
-                                # Note: Ideally LM Studio /v1/chat/completions sends standard tool_calls
-                                # This handles potential leakage of native events
-                                pass
-
-                            elif current_event == "chat.end":
-                                break
+                                    base_chunk["choices"] = [{"index": 0, "delta": {"reasoning_content": rc}}]
+                                    yield f"data: {json.dumps(base_chunk)}\n\n".encode()
+                            
+                            elif current_event == "message.delta":
+                                # Handle cases where data is in a different nested format for message.delta
+                                content = data.get("content")
+                                if content:
+                                    full_chunks.append(content)
+                                    base_chunk["choices"] = [{"index": 0, "delta": {"content": content}}]
+                                    yield f"data: {json.dumps(base_chunk)}\n\n".encode()
 
                             current_event = None
+            except Exception as e:
+                logger.error("streaming_failed", error=str(e))
+                yield f"data: {json.dumps({'error': {'message': str(e), 'type': 'proxy_error'}})}\n\n".encode()
+                yield "data: [DONE]\n\n".encode()
+                return
 
             except Exception as e:
                 logger.error("streaming_failed", error=str(e))
-                yield json.dumps({"error": {"message": str(e), "type": "proxy_error"}}).encode()
+                yield f"data: {json.dumps({'error': {'message': str(e), 'type': 'proxy_error'}})}\n\n".encode()
+                yield "data: [DONE]\n\n".encode()
                 return
+
+        # Ensure completion signal
+        yield "data: [DONE]\n\n".encode()
 
         yield b"data: [DONE]\n"
         
@@ -1026,6 +1025,12 @@ async def ace_select_option(body: dict):
 async def get_ace_trace(session_id: str):
     return ace_orchestrator.get_trace(session_id)
 
+@app.post("/v1/mcp/rpc/{session_id}")
+async def mcp_rpc(session_id: str, request: Request):
+    """MCP JSON-RPC endpoint for stateful tool sessions"""
+    body = await request.json()
+    return await proxy.mcp.handle_rpc(session_id, body)
+
 @app.post("/api/v1/benchmark/{model_id}")
 async def benchmark_model(model_id: str, background_tasks: BackgroundTasks):
     """Run comprehensive benchmark through proxy (async background task)"""
@@ -1135,6 +1140,6 @@ async def list_presets():
 
 if __name__ == "__main__":
     import uvicorn
-    host = _clean_bridge_host(os.getenv("BRIDGE_HOST", "127.0.0.1"))
-    port = _clean_bridge_port(os.getenv("BRIDGE_PORT", "8080"))
+    host = clean_bridge_host(os.getenv("BRIDGE_HOST", "127.0.0.1"))
+    port = clean_bridge_port(os.getenv("BRIDGE_PORT", "8080"))
     uvicorn.run(app, host=host, port=port)

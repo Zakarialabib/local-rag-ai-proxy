@@ -1,15 +1,40 @@
 import os
 import re
-from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
-
 import httpx
 import structlog
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from urllib.parse import urlparse
 
 from embedder import Embedder, cosine_score
 from reranker import LMStudioReranker
 
 logger = structlog.get_logger()
+
+
+def clean_bridge_host(host: str) -> str:
+    """Extract hostname from potentially dirty host string or URL."""
+    if not host:
+        return "127.0.0.1"
+    if "://" in host:
+        return urlparse(host).hostname or "127.0.0.1"
+    return host.split(":", 1)[0]
+
+
+def clean_bridge_port(port_val: Any) -> int:
+    """Extract port integer from potentially dirty string or URL."""
+    if not port_val:
+        return 8080
+    text = str(port_val)
+    if "://" in text:
+        parsed = urlparse(text)
+        return parsed.port or 8080
+    try:
+        if ":" in text:
+            return int(text.rsplit(":", 1)[1])
+        return int(text)
+    except (ValueError, IndexError):
+        return 8080
 
 
 @dataclass
@@ -26,6 +51,9 @@ class RetrievalConfig:
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
     include_sources: bool = True
     max_context_chars: int = 6000
+    rerank_instruction: str = "retrieval"
+    embed_instruction: str = "retrieval"
+    embed_dim: Optional[int] = None
 
 
 class LMStudioBridge:
@@ -49,7 +77,7 @@ class LMStudioBridge:
         if not model_id:
             return model_id
         models = await self.list_models()
-        normalized_target = self._normalize_model_token(self._extract_model_key(model_id))
+        normalized_target = self.normalize_model_token(self.extract_model_key(model_id))
         best_match = None
         for model in models:
             candidates = {
@@ -62,14 +90,14 @@ class LMStudioBridge:
             for candidate in candidates:
                 if not candidate:
                     continue
-                normalized = self._normalize_model_token(candidate)
+                normalized = self.normalize_model_token(candidate)
                 if not normalized:
                     continue
                 if normalized == normalized_target:
                     return str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
                 if normalized_target in normalized or normalized in normalized_target:
                     best_match = str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
-        return best_match or self._extract_model_key(model_id)
+        return best_match or self.extract_model_key(model_id)
 
     async def list_models(self) -> List[Dict[str, Any]]:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -95,7 +123,7 @@ class LMStudioBridge:
         return loaded
 
     async def is_model_loaded(self, model_id: str) -> bool:
-        target = self._normalize_model_token(self._extract_model_key(model_id))
+        target = self.normalize_model_token(self.extract_model_key(model_id))
         for model in await self.get_loaded_models():
             candidates = {
                 model.get("id"),
@@ -107,26 +135,43 @@ class LMStudioBridge:
                 model.get("name"),
                 model.get("path"),
             }
-            normalized = {self._normalize_model_token(value) for value in candidates if value}
+            normalized = {self.normalize_model_token(value) for value in candidates if value}
             if target in normalized:
                 return True
             if any(target and item and (target in item or item in target) for item in normalized):
                 return True
         return False
 
-    def _extract_model_key(self, value: Optional[str]) -> str:
+    @staticmethod
+    def extract_model_key(value: Optional[str]) -> str:
+        """Extract the core model key from various string formats (e.g. from environment or CLI)."""
         text = str(value or "").strip()
         match = re.search(r"model_key='([^']+)'", text)
         if match:
             return match.group(1)
         return text
 
-    def _normalize_model_token(self, value: Optional[str]) -> str:
-        text = self._extract_model_key(value).lower().replace("\\", "/")
-        text = text.rsplit("/", 1)[-1]
-        text = text.rsplit(":", 1)[-1]
+    @staticmethod
+    def normalize_model_token(value: Optional[str]) -> str:
+        """Create a search-friendly token from a model ID or path."""
+        text = LMStudioBridge.extract_model_key(value).lower().replace("\\", "/")
+        text = text.rsplit("/", 1)[-1]  # Get filename/last part
+        text = text.rsplit(":", 1)[-1]   # Handle potential port/version suffix
         text = re.sub(r"[^a-z0-9._-]+", "", text)
         return text
+
+    @staticmethod
+    def extract_text_from_content(content: Any) -> str:
+        """Extract plain text from OpenAI-style content (string OR list of parts)."""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return " ".join(
+                str(item.get("text", ""))
+                for item in content
+                if isinstance(item, dict) and (item.get("type") == "text" or "text" in item)
+            )
+        return str(content or "")
 
     async def load_model(
         self,
@@ -163,6 +208,21 @@ class LMStudioBridge:
             logger.info("bridge_model_loaded", model=resolved_model_id, identifier=identifier, context_length=context_length)
             return data
 
+    async def unload_model(self, model_id: str) -> bool:
+        """Unload a model from LM Studio to free VRAM."""
+        resolved_model_id = await self.resolve_model_id(model_id)
+        async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                # Use standard LM Studio unload endpoint
+                response = await client.post(f"{self.base_url}/api/v1/models/unload", json={"model": resolved_model_id})
+                if response.status_code == 200:
+                    logger.info("bridge_model_unloaded", model=resolved_model_id)
+                    return True
+                return False
+            except Exception as e:
+                logger.warning("bridge_unload_failed", model=resolved_model_id, error=str(e))
+                return False
+
     async def ensure_model_loaded(
         self,
         model_id: str,
@@ -190,19 +250,36 @@ class LMStudioBridge:
         )
         return True
 
-    async def embed_texts(self, texts: List[str], model: Optional[str] = None) -> List[List[float]]:
+    async def embed_texts(
+        self, 
+        texts: List[str], 
+        model: Optional[str] = None, 
+        instruction: Optional[str] = None,
+        embed_dim: Optional[int] = None
+    ) -> List[List[float]]:
         if model and model != self.embed_model:
-            return await Embedder(base_url=self.base_url, model=model).embed(texts)
-        return await self.embedder.embed(texts)
+            return await Embedder(base_url=self.base_url, model=model).embed(
+                texts, instruction=instruction, embed_dim=embed_dim
+            )
+        return await self.embedder.embed(
+            texts, instruction=instruction, embed_dim=embed_dim
+        )
 
-    async def rerank_chunks(self, query: str, chunks: List[str], top_k: int) -> List[Dict[str, Any]]:
+    async def rerank_chunks(
+        self, 
+        query: str, 
+        chunks: List[str], 
+        top_k: int,
+        instruction: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         if not query or not chunks:
             return []
 
-        reranked = await self.reranker.rerank(query, chunks, top_k=top_k)
+        reranked = await self.reranker.rerank(query, chunks, top_k=top_k, instruction=instruction)
         if reranked and any(item.get("score", 0) != 0 for item in reranked):
             return reranked
 
+        # Fallback to embeddings if reranker fails or returns zero scores
         query_embedding = await self.embedder.embed_query(query)
         chunk_embeddings = await self.embedder.embed_chunks(chunks)
         if not query_embedding or not chunk_embeddings:
@@ -228,7 +305,13 @@ class LMStudioBridge:
         if not chunk_records:
             return {"chunks": [], "context_text": "", "sources": []}
 
-        reranked = await self.rerank_chunks(query, [record["chunk"] for record in chunk_records], retrieval.top_k)
+        # Use Qwen-specific reranking instruction if provided
+        reranked = await self.rerank_chunks(
+            query, 
+            [record["chunk"] for record in chunk_records], 
+            retrieval.top_k,
+            instruction=retrieval.rerank_instruction
+        )
         selected: List[Dict[str, Any]] = []
         for item in reranked:
             match = next((record for record in chunk_records if record["chunk"] == item["chunk"]), None)
@@ -322,6 +405,9 @@ class LMStudioBridge:
             ),
             include_sources=bool(retrieval_cfg.get("include_sources", True)),
             max_context_chars=int(retrieval_cfg.get("max_context_chars", 6000)),
+            rerank_instruction=retrieval_cfg.get("rerank_instruction", "retrieval"),
+            embed_instruction=retrieval_cfg.get("embed_instruction", "retrieval"),
+            embed_dim=retrieval_cfg.get("embed_dim"),
         )
         result = await self.build_retrieval_context(user_prompt, context_docs, retrieval)
         context_text = result["context_text"]
@@ -344,12 +430,10 @@ class LMStudioBridge:
         return body, {"retrieval": result}
 
     async def _normalize_docs(self, docs: Sequence[Any]) -> List[Dict[str, str]]:
-        normalized: List[Dict[str, str]] = []
-        for index, doc in enumerate(docs):
-            record = await self._normalize_one_doc(doc, index)
-            if record:
-                normalized.append(record)
-        return normalized
+        """Normalize documents concurrently using asyncio.gather."""
+        tasks = [self._normalize_one_doc(doc, index) for index, doc in enumerate(docs)]
+        results = await asyncio.gather(*tasks)
+        return [r for r in results if r]
 
     async def _normalize_one_doc(self, doc: Any, index: int) -> Optional[Dict[str, str]]:
         if isinstance(doc, str):
@@ -468,13 +552,5 @@ class LMStudioBridge:
         for message in reversed(list(messages)):
             if message.get("role") != "user":
                 continue
-            content = message.get("content", "")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                return " ".join(
-                    item.get("text", "")
-                    for item in content
-                    if isinstance(item, dict) and item.get("type") == "text"
-                )
+            return self.extract_text_from_content(message.get("content"))
         return ""

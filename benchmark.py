@@ -428,10 +428,10 @@ class StreamingBenchmark:
     async def compare_streaming_vs_nonstreaming(self, model_id: str, 
                                                prompt_key: str = "code") -> Dict[str, Any]:
         """Direct comparison of streaming vs non-streaming for same prompt"""
-        print(f"  → Testing streaming...")
+        print(f"   Testing streaming...")
         stream_result = await self.benchmark_streaming(model_id, prompt_key)
         
-        print(f"  → Testing non-streaming...")
+        print(f"   Testing non-streaming...")
         non_stream_result = await self.benchmark_non_streaming(model_id, prompt_key)
         
         # Calculate overhead
@@ -546,12 +546,12 @@ class StreamingBenchmark:
 
     async def run_full_benchmark(self, model_id: str, prompt_key: str = "code"):
         """Complete benchmark suite"""
-        print(f"\n🔬 Benchmarking {model_id}")
+        print(f"\n Benchmarking {model_id}")
         print("=" * 60)
 
         server = await self.check_server()
         if not server.get("ok"):
-            print(f"\n❌ Cannot reach LM Studio at {self.base_url}")
+            print(f"\n Cannot reach LM Studio at {self.base_url}")
             if server.get("status_code") is not None:
                 print(f"   HTTP: {server.get('status_code')}")
             if server.get("error"):
@@ -568,19 +568,19 @@ class StreamingBenchmark:
                 elif isinstance(m, str):
                     ids.append(m)
             if ids:
-                print(f"\n📦 Models ({models.get('source')}):")
+                print(f"\n Models ({models.get('source')}):")
                 for mid in ids[:10]:
                     print(f"   - {mid}")
                 if model_id not in ids:
                     model_id = ids[0]
-                    print(f"\nℹ️ Using first available model: {model_id}")
+                    print(f"\n Using first available model: {model_id}")
         hw = await self.get_optional_hardware()
         if hw and isinstance(hw.get("data"), dict):
             data = hw["data"]
             gpu = data.get("gpu_name") or data.get("gpu") or data.get("name")
             vram = data.get("gpu_vram_gb") or data.get("vram_gb") or data.get("vram")
             platform = data.get("platform")
-            print(f"\n🖥️ Hardware ({hw.get('source')}): {platform} | {gpu} | vram_gb={vram}")
+            print(f"\n Hardware ({hw.get('source')}): {platform} | {gpu} | vram_gb={vram}")
 
         try:
             from model_discovery import get_model_path, extract_model_specs
@@ -588,7 +588,7 @@ class StreamingBenchmark:
             specs = extract_model_specs(model_path) if model_path else None
             if specs:
                 max_pos = specs.get("max_position") or specs.get("max_context")
-                print(f"\n🧩 Model Specs (local): type={specs.get('model_type')} layers={specs.get('num_layers')} heads={specs.get('num_heads')} kv_heads={specs.get('kv_heads')} ctx={max_pos}")
+                print(f"\n Model Specs (local): type={specs.get('model_type')} layers={specs.get('num_layers')} heads={specs.get('num_heads')} kv_heads={specs.get('kv_heads')} ctx={max_pos}")
         except Exception:
             pass
 
@@ -604,29 +604,29 @@ class StreamingBenchmark:
             recs = engine.recommend(model_id=model_id, params_b=params_b, use_case="balanced")
             if recs:
                 top = recs[0]
-                print(f"\n🎛️ Recommended: ctx={top.context_length} gpu_layers={top.gpu_layers} backend={top.inference_backend.value} quant={top.quantization.value} est_vram_gb={top.estimated_vram_gb}")
+                print(f"\n Recommended: ctx={top.context_length} gpu_layers={top.gpu_layers} backend={top.inference_backend.value} quant={top.quantization.value} est_vram_gb={top.estimated_vram_gb}")
         except Exception:
             pass
         
         # 1. Proxy test
         if self.proxy_url:
-            print("\n📡 Testing Proxy...")
+            print("\n Testing Proxy...")
             proxy_test = await self.test_proxy_connectivity()
             print(f"   Status: {proxy_test.get('status')}")
             print(f"   Latency: {proxy_test.get('latency_ms', 'N/A')}ms")
         
         # 2. Capability detection
-        print("\n🧠 Detecting Capabilities...")
+        print("\n Detecting Capabilities...")
         caps = await self.detect_capabilities(model_id)
-        print(f"   Reasoning: {'✅' if caps.reasoning else '❌'}")
-        print(f"   Tool Use: {'✅' if caps.tool_use else '❌'}")
-        print(f"   Vision: {'✅' if caps.vision else '❌'}")
-        print(f"   Context URLs: {'✅' if caps.context_urls else '❌'}")
+        print(f"   Reasoning: {'' if caps.reasoning else ''}")
+        print(f"   Tool Use: {'' if caps.tool_use else ''}")
+        print(f"   Vision: {'' if caps.vision else ''}")
+        print(f"   Context URLs: {'' if caps.context_urls else ''}")
         print(f"   Max Context: {caps.max_context:,} tokens")
         print(f"   Recommended Quant: {caps.recommended_quant}")
         
         # 3. Streaming vs Non-streaming comparison
-        print("\n⚡ Streaming vs Non-Streaming...")
+        print("\n Streaming vs Non-Streaming...")
         comparison = await self.compare_streaming_vs_nonstreaming(model_id, prompt_key)
         comp = comparison.get("comparison", {})
         print(f"   Streaming TTFT: {comp.get('ttft_ms', 'N/A')}ms")
@@ -637,7 +637,7 @@ class StreamingBenchmark:
         
         # 4. Test reasoning if available
         if caps.reasoning:
-            print("\n🤔 Testing Reasoning Mode...")
+            print("\n Testing Reasoning Mode...")
             reasoning_test = await self.benchmark_streaming(model_id, "thinking", max_tokens=512)
             m = reasoning_test.get("metrics", {})
             print(f"   Reasoning tokens: {m.get('reasoning_tokens', 0)}")
@@ -645,22 +645,22 @@ class StreamingBenchmark:
             print(f"   TPS: {m.get('tps', 'N/A')}")
         
         # 5. Test context URL
-        print("\n🌐 Testing Context URL...")
+        print("\n Testing Context URL...")
         url_test = await self._quick_test(model_id, self.test_prompts["context_url"], max_tokens=200)
         if url_test.get("error"):
-            print(f"   ❌ Error: {url_test['error']}")
+            print(f"    Error: {url_test['error']}")
         else:
             content = url_test.get("content", "")
             fetched = any(x in content.lower() for x in ["html", "httpbin", "h1"])
-            print(f"   {'✅' if fetched else '⚠️'} URL Fetch: {'Success' if fetched else 'Hallucinated'}")
+            print(f"   {'' if fetched else ''} URL Fetch: {'Success' if fetched else 'Hallucinated'}")
             print(f"   Length: {len(content)} chars")
         
         print("\n" + "=" * 60)
 
-        print("\n🤖 Agent Workflow Validation...")
+        print("\n Agent Workflow Validation...")
         agent_validation = await self.validate_agent_workflow("coding_sprint")
         print(json.dumps(agent_validation, indent=2))
-        print("\n🧠 ACE Workflow Validation...")
+        print("\n ACE Workflow Validation...")
         ace_validation = await self.validate_ace_workflow()
         print(json.dumps(ace_validation, indent=2))
         print("\n" + "=" * 60)

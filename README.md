@@ -81,13 +81,13 @@ open http://localhost:8090
 ```bash
 # LMStudio connection
 BRIDGE_HOST=127.0.0.1
-BRIDGE_PORT=1234
-LMSTUDIO_BASE_URL=http://127.0.0.1:1234
+BRIDGE_PORT=8080
+LMSTUDIO_BASE_URL=http://192.168.1.12:1234
 
 # Models (optional, auto-detected from LMStudio)
-MAIN_MODEL=qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2
+MAIN_MODEL=qwen3.5-4b
 EMBED_MODEL=text-embedding-qwen3-embedding-4b
-RERANK_MODEL=qwen3-reranker-0.6b
+RERANK_MODEL=qwen.qwen3-reranker-4b
 
 # Web console
 WEB_PORT=8090

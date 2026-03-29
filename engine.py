@@ -11,6 +11,7 @@ USE_CASE_PROFILES = {
     "coding": "💻 Coding & Technical",
     "creative": "🎨 Creative & Storytelling",
     "logic": "🧠 Logic & Reasoning",
+    "retrieval": "🔍 RAG & Search Optimized",
 }
 
 BACKEND_LABELS = {
@@ -224,6 +225,21 @@ class RecommendationEngine:
                     "Break every complex problem into clear, numbered steps. "
                     "Identify assumptions, evaluate evidence, and present conclusions "
                     "with confidence levels. Use structured reasoning throughout."
+                ),
+            })
+        elif use_case == "retrieval":
+            settings.update({
+                "temperature": 0.1,
+                "top_p": 0.9,
+                "top_k": 20,
+                "max_tokens": 1024,
+                "batch_size": 128, # Fast lookup
+                "system_prompt": (
+                    "You are a high-fidelity retrieval and extraction engine. "
+                    "Analyze the provided context chunks with extreme precision. "
+                    "If information is missing, explicitly state so; do not hallucinate. "
+                    "When answering based on retrieved data, cite your sources clearly "
+                    "and provide bulleted summaries where possible."
                 ),
             })
 
