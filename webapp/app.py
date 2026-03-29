@@ -618,6 +618,107 @@ def create_app() -> Flask:
                 time.sleep(1)
         return Response(generate(), mimetype="text/event-stream")
 
+    # --- TOOL HEALTH & PERFECTION ENDPOINTS ---
+
+    @app.get("/api/tools/health")
+    def api_tools_health():
+        """Get tool health status from ecosystem monitor."""
+        try:
+            from webapp.tool_ecosystem import tool_health_monitor
+            health_report = tool_health_monitor.get_health_report()
+            return jsonify({
+                "ok": True,
+                "timestamp": health_report.get("timestamp"),
+                "tools": health_report.get("tools", {}),
+                "summary": health_report.get("summary", {})
+            })
+        except Exception as e:
+            return jsonify({"error": str(e), "failed": True}), 500
+
+    @app.get("/api/tools/perfection")
+    def api_tools_perfection():
+        """Get tool perfection index metrics."""
+        try:
+            from webapp.perfection_index import perfection_index
+            metrics = perfection_index.get_index_report()
+            return jsonify({
+                "ok": True,
+                "timestamp": metrics.get("timestamp"),
+                "tool_metrics": metrics.get("tool_metrics", {}),
+                "global_index": metrics.get("global_index", 0.0),
+                "trends": metrics.get("trends", {})
+            })
+        except Exception as e:
+            return jsonify({"error": str(e), "failed": True}), 500
+
+    @app.post("/api/tools/perfection/reset")
+    def api_tools_perfection_reset():
+        """Reset perfection index metrics."""
+        try:
+            from webapp.perfection_index import perfection_index
+            perfection_index.reset_metrics()
+            return jsonify({"ok": True, "message": "Perfection index reset"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/tools/health/timeline")
+    def api_tools_health_timeline():
+        """Get health metric timeline (last 100 records)."""
+        try:
+            from webapp.tool_ecosystem import tool_health_monitor
+            timeline = tool_health_monitor.get_health_timeline(limit=100)
+            return jsonify({"ok": True, "timeline": timeline})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # --- ANALYTICS & REMEDIATION ENDPOINTS ---
+
+    @app.get("/api/tools/analytics/<tool_name>")
+    def api_tool_analytics(tool_name: str):
+        """Get analytics and history for a specific tool."""
+        try:
+            from webapp.tool_analytics import analytics_store
+            history = analytics_store.get_tool_history(tool_name, limit=100)
+            return jsonify({"ok": True, "tool": tool_name, "history": history})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.post("/api/tools/analytics/detect-anomalies")
+    def api_detect_anomalies():
+        """Run anomaly detection on all tools."""
+        try:
+            from webapp.tool_analytics import anomaly_detector
+            body = request.get_json() or {}
+            tool_name = body.get("tool_name")
+            
+            if tool_name:
+                # Single tool
+                anomalies = anomaly_detector.detect_anomalies(tool_name)
+            else:
+                # All tools
+                anomalies = []
+                for name in anomaly_detector.history.keys():
+                    anomalies.extend(anomaly_detector.detect_anomalies(name))
+            
+            return jsonify({
+                "ok": True,
+                "anomalies_detected": len(anomalies),
+                "anomalies": [a.to_dict() for a in anomalies]
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/tools/remediation/pending")
+    def api_remediation_pending():
+        """Get pending remediation actions."""
+        try:
+            from webapp.tool_analytics import remediation_engine
+            limit = int(request.args.get("limit", 50))
+            actions = remediation_engine.get_pending_actions(limit=limit)
+            return jsonify({"ok": True, "pending_actions": actions})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
     # --- ADVANCED TEST ENDPOINTS ---
     
     @app.post("/api/retrieval/test")
@@ -667,6 +768,149 @@ def create_app() -> Flask:
             return jsonify({"ok": True, "results": results})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+
+    # --- ALERT & REPORTING ENDPOINTS (Phase 3-5) ---
+
+    @app.get("/api/alerts/recent")
+    def api_alerts_recent():
+        """Get recent alerts."""
+        try:
+            from webapp.alerting_system import alert_manager
+            limit = int(request.args.get("limit", 50))
+            acknowledged = request.args.get("acknowledged")
+            ack_filter = None
+            if acknowledged in {"true", "1"}:
+                ack_filter = True
+            elif acknowledged in {"false", "0"}:
+                ack_filter = False
+            
+            alerts = alert_manager.store.get_recent_alerts(limit=limit, acknowledged=ack_filter)
+            return jsonify({"ok": True, "alerts": alerts})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/alerts/summary")
+    def api_alerts_summary():
+        """Get alert summary statistics."""
+        try:
+            from webapp.alerting_system import alert_manager
+            summary = alert_manager.get_alerts_summary()
+            return jsonify({"ok": True, "summary": summary})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.post("/api/alerts/<alert_id>/acknowledge")
+    def api_acknowledge_alert(alert_id: str):
+        """Acknowledge an alert."""
+        try:
+            from webapp.alerting_system import alert_manager
+            body = request.get_json() or {}
+            acknowledged_by = body.get("acknowledged_by", "user")
+            alert_manager.store.acknowledge_alert(alert_id, acknowledged_by)
+            return jsonify({"ok": True, "message": "Alert acknowledged"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/alerts/tool/<tool_name>")
+    def api_tool_alerts(tool_name: str):
+        """Get alerts for a specific tool."""
+        try:
+            from webapp.alerting_system import alert_manager
+            limit = int(request.args.get("limit", 50))
+            alerts = alert_manager.store.get_tool_alerts(tool_name, limit=limit)
+            return jsonify({"ok": True, "tool": tool_name, "alerts": alerts})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/reports/daily")
+    def api_report_daily():
+        """Generate daily report for a tool."""
+        try:
+            from webapp.reporting_system import report_generator
+            tool_name = request.args.get("tool", "")
+            if not tool_name:
+                return jsonify({"error": "tool parameter required"}), 400
+            
+            report = report_generator.generate_daily_report(tool_name)
+            return jsonify({"ok": True, "report": report})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/reports/weekly")
+    def api_report_weekly():
+        """Generate weekly report for a tool."""
+        try:
+            from webapp.reporting_system import report_generator
+            tool_name = request.args.get("tool", "")
+            if not tool_name:
+                return jsonify({"error": "tool parameter required"}), 400
+            
+            report = report_generator.generate_weekly_report(tool_name)
+            return jsonify({"ok": True, "report": report})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/reports/monthly")
+    def api_report_monthly():
+        """Generate monthly report for a tool."""
+        try:
+            from webapp.reporting_system import report_generator
+            tool_name = request.args.get("tool", "")
+            if not tool_name:
+                return jsonify({"error": "tool parameter required"}), 400
+            
+            report = report_generator.generate_monthly_report(tool_name)
+            return jsonify({"ok": True, "report": report})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/reports/regressions")
+    def api_report_regressions():
+        """Get detected regressions."""
+        try:
+            from webapp.reporting_system import report_store
+            tool_name = request.args.get("tool")
+            limit = int(request.args.get("limit", 50))
+            
+            regressions = report_store.get_regressions(tool_name=tool_name, limit=limit)
+            return jsonify({"ok": True, "regressions": regressions})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/reports/trends")
+    def api_report_trends():
+        """Get trend history for a tool."""
+        try:
+            from webapp.reporting_system import report_store
+            tool_name = request.args.get("tool", "")
+            if not tool_name:
+                return jsonify({"error": "tool parameter required"}), 400
+            
+            days = int(request.args.get("days", 30))
+            trends = report_store.get_trend_history(tool_name, days=days)
+            return jsonify({"ok": True, "tool": tool_name, "days": days, "trends": trends})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # --- SSE STREAMING ENDPOINTS ---
+
+    @app.get("/api/sse/alerts")
+    def api_sse_alerts():
+        """Stream real-time alerts via SSE."""
+        from webapp.sse import sse_stream
+        return sse_stream("alerts")
+
+    @app.get("/api/sse/health")
+    def api_sse_health():
+        """Stream real-time health updates via SSE."""
+        from webapp.sse import sse_stream
+        return sse_stream("health")
+
+    @app.get("/api/sse/metrics")
+    def api_sse_metrics():
+        """Stream real-time metrics updates via SSE."""
+        from webapp.sse import sse_stream
+        return sse_stream("cold")
 
     return app
 

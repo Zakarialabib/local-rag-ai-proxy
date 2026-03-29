@@ -464,7 +464,15 @@
                 <i class="fas fa-tachometer-alt"></i> Benchmark Center
             </div>
 
+            <div class="nav-label">Optimization</div>
+            <div class="nav-item" onclick="switchView('perfection', this)">
+                <i class="fas fa-gem"></i> Phase 6: Perfection
+            </div>
+
             <div class="nav-label">Management</div>
+            <div class="nav-item" onclick="switchView('health', this)">
+                <i class="fas fa-heartbeat"></i> Tool Health
+            </div>
             <div class="nav-item" onclick="switchView('presets', this)">
                 <i class="fas fa-sliders-h"></i> Presets
             </div>
@@ -812,6 +820,69 @@
         </div>
 
         <!-- PRESET MANAGER -->
+        <div id="view-health" class="view-section">
+            <div class="header-row">
+                <div class="page-title">
+                    <h2>Tool Health & Perfection Index</h2>
+                    <p>Real-time monitoring, anomaly detection, and automated remediation.</p>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-secondary" onclick="refreshHealthStatus()">
+                        <i class="fas fa-redo-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary" onclick="detectAnomalies()">
+                        <i class="fas fa-search"></i> Detect Anomalies
+                    </button>
+                </div>
+            </div>
+
+            <!-- Health Status Widget -->
+            <div class="glass" style="padding: 32px; margin-bottom: 24px;">
+                <div class="card-header" style="margin-bottom: 20px;">Tool Health Status</div>
+                <div data-widget="health-status" style="min-height: 150px;">
+                    <p style="color: var(--text-muted);">Loading health status...</p>
+                </div>
+            </div>
+
+            <!-- Perfection Index Widget -->
+            <div class="glass" style="padding: 32px; margin-bottom: 24px;">
+                <div class="card-header" style="margin-bottom: 20px;">Perfection Index Metrics</div>
+                <div data-widget="perfection-index" style="min-height: 200px;">
+                    <p style="color: var(--text-muted);">Loading perfection metrics...</p>
+                </div>
+            </div>
+
+            <!-- Timeline & Anomalies -->
+            <div class="grid-2" style="margin-bottom: 24px;">
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header" style="margin-bottom: 20px;">Health Timeline</div>
+                    <div data-widget="health-timeline" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+                        <p style="color: var(--text-muted);">Loading timeline...</p>
+                    </div>
+                </div>
+                <div class="glass" style="padding: 32px;">
+                    <div class="card-header" style="margin-bottom: 20px;">Detected Anomalies</div>
+                    <div data-widget="anomalies" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+                        <p style="color: var(--text-muted);">Click "Detect Anomalies" to run analysis...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Remediation Actions -->
+            <div class="glass" style="padding: 32px;">
+                <div class="card-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>Remediation Actions</span>
+                    <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="viewRemediationActions()">
+                        <i class="fas fa-history"></i> View
+                    </button>
+                </div>
+                <div data-widget="remediation" style="min-height: 200px;">
+                    <p style="color: var(--text-muted);">No recent actions...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- PRESET MANAGER -->
         <div id="view-presets" class="view-section">
             <div class="header-row">
                 <div class="page-title">
@@ -874,6 +945,311 @@
                 </div>
             </div>
         </div>
+
+        <!-- PERFECTION PATH - Phase 6 -->
+        <div id="view-perfection" class="view-section">
+            <!-- Resilience Indicator (Always Visible at Top) -->
+            <div class="resilience-banner">
+                <div class="resilience-mode-display" id="resilience-mode">
+                    <span class="mode-emoji">🟢</span>
+                    <span class="mode-name">IDEAL</span>
+                    <small>Qwen3.5-4B Q4_K_M + Embed4B + Rerank0.6B</small>
+                </div>
+                <div class="fallback-indicators">
+                    <span class="level-dot ideal">1</span>
+                    <span class="level-arrow">→</span>
+                    <span class="level-dot pressure">2</span>
+                    <span class="level-arrow">→</span>
+                    <span class="level-dot emergency">3</span>
+                    <span class="level-arrow">→</span>
+                    <span class="level-dot retrieval">4</span>
+                    <span class="level-arrow">→</span>
+                    <span class="level-dot circuit">5</span>
+                </div>
+            </div>
+
+            <!-- Grid Layout for 10 Panels -->
+            <div class="perfection-grid">
+                
+                <!-- 1. Capability Envelope (Constraint Probing) -->
+                <div class="perfection-panel" id="panel-probing">
+                    <div class="panel-header">
+                        <h3>⛰️ Capability Envelope</h3>
+                        <button onclick="refreshPanel('probing')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-probing" width="300" height="200"></canvas>
+                        <div class="envelope-stats">
+                            <div class="stat-box">
+                                <label>Safe Zone</label>
+                                <value id="stat-safe-zone">0-4096 tokens</value>
+                            </div>
+                            <div class="stat-box">
+                                <label>Cliff Edge</label>
+                                <value id="stat-cliff">8192 tokens</value>
+                            </div>
+                            <div class="stat-box">
+                                <label>Trend</label>
+                                <value id="stat-trend">📈 Stable</value>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. VRAM Tetris Visualizer (Model Sharding) -->
+                <div class="perfection-panel" id="panel-sharding">
+                    <div class="panel-header">
+                        <h3>🧩 Model Residency (VRAM Tetris)</h3>
+                        <button onclick="refreshPanel('sharding')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="vram-bar" id="vram-bar">
+                            <div class="residency-block" style="width: 40%; background: #00ff41;">Qwen (3.2GB)</div>
+                            <div class="residency-block" style="width: 22%; background: #ffff00;">Embed (1.8GB)</div>
+                            <div class="residency-block" style="width: 7%; background: #ff6b6b;">Rerank (0.6GB)</div>
+                            <div class="residency-block" style="width: 19%; background: #e0e0e0;">CUDA (1.5GB)</div>
+                        </div>
+                        <div class="residency-legend">
+                            <small>🟢 Resident | 🟡 Swapping | 🔴 Evicted | ⚪ Overhead</small>
+                        </div>
+                        <div class="residency-info" id="residency-info">
+                            <p>Total Used: <strong>6.2GB / 8GB</strong></p>
+                            <p>Free VRAM: <strong>1.8GB</strong></p>
+                            <p>Last Task: Code Generation → Kept main+embed, evicted reranker</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Pre-warming Status (Cold-Start Mitigation) -->
+                <div class="perfection-panel" id="panel-prewarming">
+                    <div class="panel-header">
+                        <h3>🔥 Pre-warming Status</h3>
+                        <button onclick="refreshPanel('prewarming')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="ttft-comparison">
+                            <div class="metric-box cold">
+                                <h4>Cold TTFT</h4>
+                                <value class="big">26s</value>
+                                <small>First run after idle</small>
+                            </div>
+                            <div class="metric-box arrow">→</div>
+                            <div class="metric-box hot">
+                                <h4>Hot TTFT</h4>
+                                <value class="big">2.1s</value>
+                                <small>After warming</small>
+                            </div>
+                        </div>
+                        <div class="prewarm-log">
+                            <p>⏰ Idle: <span id="idle-time">45s</span> ago</p>
+                            <p>📊 Status: <span id="warm-status">Model likely cold</span></p>
+                            <button onclick="triggerPrewarm()" class="btn-action">Trigger Pre-warm</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Truncation-Aware Streaming (Output Quality) -->
+                <div class="perfection-panel" id="panel-truncation">
+                    <div class="panel-header">
+                        <h3>📄 Truncation Monitoring</h3>
+                        <button onclick="refreshPanel('truncation')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-truncation" width="300" height="150"></canvas>
+                        <div class="truncation-patterns">
+                            <div class="pattern alert">
+                                <strong>Code</strong>: 51% truncate (avg 262 tokens)
+                                <small>→ Suggest max_tokens: 1024</small>
+                            </div>
+                            <div class="pattern success">
+                                <strong>Reasoning</strong>: 5% truncate (avg 1800 tokens)
+                                <small>→ Current setting OK</small>
+                            </div>
+                            <div class="pattern info">
+                                <strong>Retrieval</strong>: 0% truncate (avg 120 tokens)
+                                <small>→ Reduce max_tokens: 256</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Reranker Dilemma (0.6B vs 4B) -->
+                <div class="perfection-panel" id="panel-reranker">
+                    <div class="panel-header">
+                        <h3>♻️ Reranker Selection</h3>
+                        <button onclick="refreshPanel('reranker')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="reranker-options">
+                            <div class="option active">
+                                <h4>Fast (0.6B) ✓ Active</h4>
+                                <p>Latency: <strong>45ms</strong></p>
+                                <p>Confidence: <strong>0.82</strong></p>
+                                <p>Used: <strong>87%</strong> of time</p>
+                            </div>
+                            <div class="option">
+                                <h4>Deep (4B)</h4>
+                                <p>Latency: <strong>5200ms</strong></p>
+                                <p>Confidence: <strong>0.96</strong></p>
+                                <p>Used: <strong>13%</strong> (confidence < 0.7)</p>
+                            </div>
+                        </div>
+                        <div class="swap-log">
+                            <small>Recent swaps for confidence < 0.7</small>
+                            <p>✓ "architectural patterns" → 4B reranker</p>
+                            <p>✗ "legal docs" → 0.6B sufficient</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. VRAM Fragmentation & Grooming -->
+                <div class="perfection-panel" id="panel-grooming">
+                    <div class="panel-header">
+                        <h3>🧹 VRAM Management</h3>
+                        <button onclick="refreshPanel('vram')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="fragmentation-alert">
+                            <h4>⚠️ Fragmentation Detected</h4>
+                            <p>Available: <strong>1.2GB</strong> | Allocatable: <strong>0.7GB</strong></p>
+                            <p style="color: #ff6b6b;">Loss: <strong>500MB (41%)</strong></p>
+                        </div>
+                        <div class="groom-schedule">
+                            <h4>Grooming Schedule</h4>
+                            <p>Next: <strong>Tomorrow 2:30 AM</strong> (idle window)</p>
+                            <button onclick="triggerGrooming()" class="btn-action">Groom Now</button>
+                        </div>
+                        <div class="groom-history">
+                            <small>Last grooming: Yesterday 2:32 AM</small>
+                            <p>Recovered: <strong>480MB</strong> in 32s</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. Preset Evolution Lineage -->
+                <div class="perfection-panel" id="panel-evolution">
+                    <div class="panel-header">
+                        <h3>🔀 Preset Evolution</h3>
+                        <button onclick="refreshPanel('presets')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="preset-tree">
+                            <div class="tree-node root">
+                                <strong>Base</strong> (Jan 1)
+                                <small>TTFT: 26s, TPS: 7/s</small>
+                                
+                                <div class="tree-children">
+                                    <div class="tree-node improved">
+                                        🔽 Context (Jan 7)
+                                        <small>TTFT: 18s → TPS: 9/s ✓</small>
+                                    </div>
+                                    <div class="tree-node degraded">
+                                        🔼 Temp (Jan 14)
+                                        <small>TTFT: 22s → TPS: 8/s ✗</small>
+                                    </div>
+                                    <div class="tree-node current">
+                                        🔼 Batch (Jan 21) ⭐ CURRENT
+                                        <small>TTFT: 15s → TPS: 12/s ✓</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="evolution-stats">
+                            <p>Improvement: <strong>26s → 15s</strong> (42% reduction)</p>
+                            <p>Success Rate: <strong>8/12</strong> mutations (67%)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. Streaming Mode Decision -->
+                <div class="perfection-panel" id="panel-streaming">
+                    <div class="panel-header">
+                        <h3>📡 Streaming Mode</h3>
+                        <button onclick="refreshPanel('streaming')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <canvas id="chart-streaming" width="300" height="150"></canvas>
+                        <div class="mode-recommendations">
+                            <div class="mode-box true-stream">
+                                <h4>✓ True Streaming</h4>
+                                <p>TPS > 10/s</p>
+                                <small>Reasoning, fast tasks</small>
+                            </div>
+                            <div class="mode-box batch-stream">
+                                <h4>⚙️ Batch-and-Stream</h4>
+                                <p>TPS < 10/s</p>
+                                <small>Code, complex generation</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. Vision Capability Masking -->
+                <div class="perfection-panel" id="panel-vision">
+                    <div class="panel-header">
+                        <h3>👁️ Vision Masking</h3>
+                        <button onclick="refreshPanel('vision')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="capability-mismatch">
+                            <div class="capability declared">
+                                <h4>Declared</h4>
+                                <p>vision: <strong>true</strong></p>
+                            </div>
+                            <div class="capability runtime">
+                                <h4>Runtime</h4>
+                                <p>Free VRAM: <strong>0.8GB</strong></p>
+                                <p style="color: #ff6b6b;">vision: <strong>❌ MASKED</strong></p>
+                            </div>
+                        </div>
+                        <div class="vision-options">
+                            <p><small>Required for vision: <strong>2.0GB</strong> free VRAM</small></p>
+                            <button onclick="enableVision()" class="btn-action btn-warn">
+                                Evict Reranker to Enable
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10. Resilience Mode Details -->
+                <div class="perfection-panel" id="panel-resilience">
+                    <div class="panel-header">
+                        <h3>🛡️ Resilience Modes</h3>
+                        <button onclick="refreshPanel('resilience')" class="btn-refresh">↻</button>
+                    </div>
+                    <div class="panel-body">
+                        <div class="fallback-chain">
+                            <div class="level current">
+                                <h4>🟢 IDEAL (Level 1) ← Current</h4>
+                                <small>Qwen3.5-4B Q4_K_M + Embed4B + Rerank0.6B</small>
+                            </div>
+                            <div class="level">
+                                <h4>🟡 PRESSURE (Level 2)</h4>
+                                <small>Qwen3.5-4B Q3_K_M + Embed4B (reduced quantization)</small>
+                            </div>
+                            <div class="level">
+                                <h4>🟠 EMERGENCY (Level 3)</h4>
+                                <small>Lfm2.5-1.2B + Embed4B (smaller model)</small>
+                            </div>
+                            <div class="level">
+                                <h4>🔴 RETRIEVAL (Level 4)</h4>
+                                <small>Embed4B + Rerank0.6B only (no generation)</small>
+                            </div>
+                            <div class="level">
+                                <h4>⚫ CIRCUIT BREAK (Level 5)</h4>
+                                <small>System offline - manual restart required</small>
+                            </div>
+                        </div>
+                        <div class="activation-log">
+                            <small>Recent activations:</small>
+                            <p>12:45 - OOM → Level 2 (Q3_K_M) ✓ Success</p>
+                            <p>10:20 - Still failing → Level 3 (Lfm2.5) ✓ Success</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div> <!-- end perfection-grid -->
+        </div> <!-- end view-perfection -->
     </div>
 </div>
 
@@ -882,5 +1258,10 @@
     window.__DASHBOARD__ = JSON.parse(document.getElementById('dashboard-json').textContent);
     window.__CSRF__ = "{{ csrf_token() }}";
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
+<script src="{{ url_for('static', filename='perfection-dashboard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='perfection-path-dashboard.js') }}" defer></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='perfection-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='perfection-path-dashboard.css') }}">
 {% endblock %}

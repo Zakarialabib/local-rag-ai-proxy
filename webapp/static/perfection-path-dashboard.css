@@ -1,0 +1,789 @@
+/* Phase 6 Perfection Path Dashboard - Glass-Morphism Styling */
+
+#perfection-path {
+  padding: 20px;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a0033 100%);
+  min-height: 100vh;
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================
+   RESILIENCE BANNER (Always Visible)
+   ============================================ */
+
+.resilience-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.resilience-mode-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mode-emoji {
+  font-size: 28px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.mode-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #00ff41;
+  text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+}
+
+.mode-name + small {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.fallback-indicators {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.level-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: 11px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.level-dot.ideal {
+  background: linear-gradient(135deg, #00ff41, #00cc33);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.6);
+}
+
+.level-dot.pressure {
+  background: linear-gradient(135deg, #ffaa00, #ff8800);
+  box-shadow: 0 0 10px rgba(255, 170, 0, 0.4);
+}
+
+.level-dot.emergency {
+  background: linear-gradient(135deg, #ff6b00, #ff4400);
+  box-shadow: 0 0 10px rgba(255, 107, 0, 0.4);
+}
+
+.level-dot.retrieval {
+  background: linear-gradient(135deg, #ff3333, #cc0000);
+  box-shadow: 0 0 10px rgba(255, 51, 51, 0.4);
+}
+
+.level-dot.circuit {
+  background: linear-gradient(135deg, #333333, #000000);
+  box-shadow: 0 0 10px rgba(100, 100, 100, 0.3);
+}
+
+.level-arrow {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: bold;
+}
+
+/* ============================================
+   GRID LAYOUT
+   ============================================ */
+
+.perfection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+@media (max-width: 768px) {
+  .perfection-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
+   PANEL STYLING (Glass-Morphism)
+   ============================================ */
+
+.perfection-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+              inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.perfection-panel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4),
+              inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.btn-refresh {
+  background: rgba(0, 255, 65, 0.1);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  color: #00ff41;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.btn-refresh:hover {
+  background: rgba(0, 255, 65, 0.2);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.4);
+  transform: rotate(180deg);
+}
+
+.panel-body {
+  padding: 18px;
+}
+
+/* ============================================
+   ACTION BUTTONS
+   ============================================ */
+
+.btn-action {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #00ff41 0%, #00cc33 100%);
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 255, 65, 0.3);
+}
+
+.btn-action:hover {
+  box-shadow: 0 6px 18px rgba(0, 255, 65, 0.5);
+  transform: translateY(-2px);
+}
+
+.btn-action.btn-warn {
+  background: linear-gradient(135deg, #ffaa00 0%, #ff8800 100%);
+  box-shadow: 0 4px 12px rgba(255, 170, 0, 0.3);
+  color: #000;
+}
+
+.btn-action.btn-warn:hover {
+  box-shadow: 0 6px 18px rgba(255, 170, 0, 0.5);
+}
+
+/* ============================================
+   PANEL-SPECIFIC STYLES
+   ============================================ */
+
+/* Panel 1: Probing */
+
+.envelope-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.stat-box {
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.stat-box label {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.stat-box value {
+  display: block;
+  font-size: 13px;
+  color: #00ff41;
+  font-weight: 600;
+}
+
+/* Panel 2: Sharding */
+
+.vram-bar {
+  display: flex;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.residency-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.residency-legend {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 12px;
+}
+
+.residency-info {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.residency-info p {
+  margin: 4px 0;
+}
+
+.residency-info strong {
+  color: #00ff41;
+}
+
+/* Panel 3: Pre-warming */
+
+.ttft-comparison {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 16px;
+  gap: 8px;
+}
+
+.metric-box {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.metric-box.cold {
+  border-color: rgba(255, 100, 0, 0.3);
+  background: rgba(255, 100, 0, 0.05);
+}
+
+.metric-box.hot {
+  border-color: rgba(0, 255, 65, 0.3);
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.metric-box h4 {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.metric-box value {
+  display: block;
+  font-size: 18px;
+  font-weight: bold;
+  color: #00ff41;
+  margin-bottom: 4px;
+}
+
+.metric-box small {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.metric-box.arrow {
+  flex: 0.3;
+  font-size: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.prewarm-log {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.prewarm-log p {
+  margin: 6px 0;
+}
+
+.prewarm-log span {
+  color: #00ff41;
+  font-weight: 600;
+}
+
+/* Panel 4: Truncation */
+
+.truncation-patterns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pattern {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  border-left: 3px solid;
+}
+
+.pattern strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.pattern small {
+  display: block;
+  opacity: 0.8;
+}
+
+.pattern alert {
+  background: rgba(255, 100, 0, 0.1);
+  border-left-color: #ff6400;
+  color: #ffb366;
+}
+
+.pattern success {
+  background: rgba(0, 255, 65, 0.1);
+  border-left-color: #00ff41;
+  color: #00ff41;
+}
+
+.pattern info {
+  background: rgba(100, 150, 255, 0.1);
+  border-left-color: #6496ff;
+  color: #96b4ff;
+}
+
+/* Panel 5: Reranker */
+
+.reranker-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.option {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.option.active {
+  border-color: rgba(0, 255, 65, 0.4);
+  background: rgba(0, 255, 65, 0.08);
+  box-shadow: 0 0 12px rgba(0, 255, 65, 0.2);
+}
+
+.option h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.option p {
+  margin: 3px 0;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.option strong {
+  color: #00ff41;
+}
+
+.swap-log {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.swap-log p {
+  margin: 4px 0;
+}
+
+/* Panel 6: VRAM Grooming */
+
+.fragmentation-alert {
+  background: rgba(255, 100, 0, 0.1);
+  border: 1px solid rgba(255, 100, 0, 0.3);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.fragmentation-alert h4 {
+  margin: 0 0 8px 0;
+  color: #ffb366;
+  font-size: 12px;
+}
+
+.fragmentation-alert p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.groom-schedule {
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.groom-schedule h4 {
+  margin: 0 0 8px 0;
+  color: #00ff41;
+  font-size: 12px;
+}
+
+.groom-schedule p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.groom-history {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.groom-history p {
+  margin: 4px 0;
+  color: #00ff41;
+}
+
+/* Panel 7: Evolution */
+
+.preset-tree {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.tree-node {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-left: 2px solid rgba(100, 150, 255, 0.3);
+  padding-left: 12px;
+}
+
+.tree-node strong {
+  color: #96b4ff;
+}
+
+.tree-node small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tree-node.current {
+  border-left-color: rgba(0, 255, 65, 0.5);
+  background: rgba(0, 255, 65, 0.05);
+  border-radius: 6px;
+}
+
+.tree-node.improved {
+  border-left-color: rgba(0, 200, 50, 0.4);
+}
+
+.tree-node.degraded {
+  border-left-color: rgba(255, 100, 0, 0.3);
+}
+
+.tree-children {
+  margin-top: 10px;
+  margin-left: 6px;
+}
+
+.evolution-stats {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.evolution-stats p {
+  margin: 4px 0;
+}
+
+.evolution-stats strong {
+  color: #00ff41;
+}
+
+/* Panel 8: Streaming */
+
+.mode-recommendations {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mode-box {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.mode-box h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+}
+
+.mode-box p {
+  margin: 4px 0;
+  color: #00ff41;
+  font-weight: 600;
+}
+
+.mode-box small {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Panel 9: Vision */
+
+.capability-mismatch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.capability {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.capability.declared {
+  border-color: rgba(0, 255, 65, 0.3);
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.capability.runtime {
+  border-color: rgba(255, 100, 0, 0.3);
+  background: rgba(255, 100, 0, 0.05);
+}
+
+.capability h4 {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+}
+
+.capability p {
+  margin: 3px 0;
+  font-size: 12px;
+}
+
+.vision-options {
+  background: rgba(255, 100, 0, 0.05);
+  border: 1px solid rgba(255, 100, 0, 0.2);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.vision-options small {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Panel 10: Resilience */
+
+.fallback-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.level {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.level.current {
+  border-color: rgba(0, 255, 65, 0.4);
+  background: rgba(0, 255, 65, 0.1);
+  box-shadow: inset 0 0 12px rgba(0, 255, 65, 0.1);
+}
+
+.level h4 {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.level small {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+}
+
+.activation-log {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.activation-log small {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.activation-log p {
+  margin: 4px 0;
+}
+
+/* ============================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================ */
+
+@media (max-width: 480px) {
+  .resilience-banner {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .fallback-indicators {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .ttft-comparison {
+    flex-direction: column;
+  }
+
+  .reranker-options,
+  .capability-mismatch,
+  .mode-recommendations {
+    grid-template-columns: 1fr;
+  }
+
+  .envelope-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .perfection-panel {
+    border-radius: 8px;
+  }
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.btn-refresh:active {
+  animation: spin 0.6s linear;
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 65, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(0, 255, 65, 0.6); }
+}
+
+.perfection-panel.loading {
+  animation: glow 1.5s ease-in-out infinite;
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
+#perfection-path::-webkit-scrollbar {
+  width: 8px;
+}
+
+#perfection-path::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+#perfection-path::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 65, 0.3);
+  border-radius: 4px;
+}
+
+#perfection-path::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 65, 0.5);
+}

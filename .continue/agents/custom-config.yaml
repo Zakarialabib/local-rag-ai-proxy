@@ -4,8 +4,8 @@ schema: v1
 models:
   - name: qwen3.5 4B
     provider: lmstudio
-    model: qwen3.5-4b-claude-4.6-opus-reasoning-distilled-v2
-    apiBase: http://192.168.1.12:1234/v1/
+    model: qwen3.5-4b
+    apiBase: http://127.0.0.1:8080/v1/
     promptTemplates:
       edit: |
         `Here is the code before editing:
@@ -33,22 +33,22 @@ models:
   - name: Lfm2.5 1.2B
     provider: lmstudio
     model: liquid-lfm2.5-1.2b
-    apiBase: http://192.168.1.12:1234/v1/
+    apiBase: http://127.0.0.1:8080/v1/
     roles:
       - chat
     capabilities:
       - tool_use
 
-  - name: Qwen3 Reranker 4B
+  - name: Qwen3 Reranker 0.6B
     provider: lmstudio
-    apiBase: http://192.168.1.12:1234
+    apiBase: http://127.0.0.1:8080/v1/
     apiKey: sk-xxx
-    model: qwen3-reranker-4b
+    model: qwen.qwen3-reranker-4b
     roles: [rerank]
 
   - name: Qwen3 Embedding 4B
     provider: lmstudio
-    apiBase: http://192.168.1.12:1234
+    apiBase: http://127.0.0.1:8080/v1/
     apiKey: sk-xxx
     model: text-embedding-qwen3-embedding-4b
     roles: [embed]

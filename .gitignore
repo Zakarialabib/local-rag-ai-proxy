@@ -17,8 +17,6 @@ venv/
 *.tmp
 *.temp
 
-
-
 # IDE configurations
 .vscode/
 .idea/
@@ -28,3 +26,7 @@ venv/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 .env
+
+.kilocode/
+.kilo/
+.continue/*

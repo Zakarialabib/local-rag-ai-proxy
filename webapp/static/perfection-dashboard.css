@@ -1,0 +1,386 @@
+/* Perfection Dashboard Widget Styles */
+
+.health-widget,
+.perfection-widget,
+.anomalies-widget,
+.remediation-widget,
+.timeline-widget {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.health-widget h3,
+.perfection-widget h3,
+.anomalies-widget h3,
+.remediation-widget h3,
+.timeline-widget h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Health Gauge */
+.health-gauge {
+    height: 30px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    transition: width 0.3s ease;
+    min-width: 30px;
+}
+
+.tool-statuses {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.tool-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px;
+    background: white;
+    border-left: 4px solid #999;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.tool-status.healthy {
+    border-left-color: #4CAF50;
+}
+
+.tool-status.degraded {
+    border-left-color: #FFC107;
+}
+
+.tool-status.isolated {
+    border-left-color: #F44336;
+}
+
+.tool-status.failed {
+    border-left-color: #D32F2F;
+}
+
+.tool-name {
+    font-weight: 600;
+    color: #333;
+    flex: 1;
+}
+
+.status-badge {
+    background: #e0e0e0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin: 0 5px;
+    font-size: 11px;
+}
+
+.error-rate {
+    color: #666;
+    font-size: 11px;
+}
+
+.timestamp {
+    color: #999;
+    font-size: 12px;
+    margin-top: 10px;
+}
+
+/* Perfection Metrics */
+.perfection-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+}
+
+.metric-card h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+}
+
+.metric-value {
+    font-size: 28px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.metric-scale {
+    height: 6px;
+    background: #e0e0e0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.scale-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #FFC107, #F44336);
+    transition: width 0.3s ease;
+}
+
+.tool-perfection {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.tool-perfection h4 {
+    margin: 0 0 10px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+}
+
+.tool-metric-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+
+.tool-metric-row:last-child {
+    border-bottom: none;
+}
+
+.perfection-score {
+    font-weight: bold;
+}
+
+.quality {
+    color: #666;
+    margin-left: 10px;
+}
+
+/* Anomalies */
+.anomalies-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.anomaly-item {
+    background: white;
+    border-left: 4px solid #999;
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 12px;
+}
+
+.anomaly-item.severity-1 {
+    border-left-color: #FFC107;
+}
+
+.anomaly-item.severity-2 {
+    border-left-color: #FF9800;
+}
+
+.anomaly-item.severity-3 {
+    border-left-color: #F44336;
+}
+
+.anomaly-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.anomaly-type {
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.severity-badge {
+    background: #FFE0B2;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.anomaly-details {
+    color: #666;
+    margin-bottom: 8px;
+    font-family: monospace;
+}
+
+.suggested-fixes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.fix-tag {
+    background: #E8F5E9;
+    color: #2E7D32;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Remediation */
+.actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-item {
+    background: white;
+    border-left: 4px solid #999;
+    border-radius: 4px;
+    padding: 12px;
+    font-size: 12px;
+}
+
+.action-item.result-executed {
+    border-left-color: #4CAF50;
+}
+
+.action-item.result-failed {
+    border-left-color: #F44336;
+}
+
+.action-item.result-pending {
+    border-left-color: #FFC107;
+}
+
+.action-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.action-type {
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.result-badge {
+    background: #E3F2FD;
+    color: #1565C0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-left: auto;
+}
+
+.action-reason {
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.action-time {
+    color: #999;
+    font-size: 11px;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e0e0e0;
+}
+
+.timeline-event {
+    position: relative;
+    margin-bottom: 20px;
+    margin-left: 40px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -32px;
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border: 3px solid #e0e0e0;
+    border-radius: 50%;
+}
+
+.timeline-event.event-type-isolation .timeline-marker {
+    border-color: #F44336;
+    background: #F44336;
+}
+
+.timeline-event.event-type-recovery .timeline-marker {
+    border-color: #4CAF50;
+    background: #4CAF50;
+}
+
+.timeline-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.event-tool {
+    font-weight: bold;
+    color: #333;
+}
+
+.event-type {
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    width: fit-content;
+}
+
+.event-time {
+    color: #999;
+    font-size: 11px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .perfection-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .tool-statuses {
+        grid-template-columns: 1fr;
+    }
+}
