@@ -128,7 +128,31 @@ class ContextManager:
 
     def should_compress(self, messages: List[Dict], token_budget: int = 4000) -> bool:
         """Check if context should be compressed based on estimated token count."""
-        text = " ".join(m.get("content", "") for m in messages)
-        # Regex to match words and punctuation as distinct tokens
-        estimated_tokens = len(re.findall(r"\w+|[^\w\s]", text))
-        return estimated_tokens > token_budget
+        try:
+            # Defensive parsing to handle nested structures like {"type": "text", "content": ["Hello", "World"]}
+            def extract_content(m: Dict) -> str:
+                content = m.get("content")
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, dict):
+                    # Extract content from nested structure (e.g., {"type": "text", "content": [...]})
+                    inner_content = content.get("content")
+                    if isinstance(inner_content, str):
+                        return inner_content
+                    else:
+                        # Handle list or other types of content
+                        items = inner_content if inner_content is not None else []
+                        return " ".join(str(item) for item in items)
+                elif content is None:
+                    return ""
+                else:
+                    # Fallback for any other format
+                    return str(content)
+            
+            text = " ".join(extract_content(m) for m in messages)
+            estimated_tokens = len(re.findall(r"\w+|[^\\w\s]", text))
+            return estimated_tokens > token_budget
+        except Exception:
+            # Return False on any error instead of crashing
+            logger.debug("Error estimating tokens, assuming compression not needed")
+            return False

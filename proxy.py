@@ -123,9 +123,12 @@ class OptimizingProxy:
                 logger.info("context_pruned", original=original_count, pruned=len(body["messages"]), domain=domain)
                           
             # Context compression hook
-            if self.context.should_compress(body["messages"]):
-                body["messages"] = self.context.compress_context(body["messages"])
-                logger.info("context_compressed")
+            try:
+                if self.context.should_compress(body["messages"]):
+                    body["messages"] = self.context.compress_context(body["messages"])
+                    logger.info("context_compressed")
+            except Exception as e:
+                logger.warning("context_compression_failed", error=str(e))
         
         # 2. Detect and inject domain-specific system prompt
         if "messages" in body:

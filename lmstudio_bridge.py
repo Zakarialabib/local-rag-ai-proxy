@@ -1,9 +1,11 @@
+import asyncio
+import httpx
+import json
 import os
 import re
-import httpx
 import structlog
 from dataclasses import dataclass, field
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Generator, Iterable, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 from embedder import Embedder, cosine_score
@@ -11,6 +13,10 @@ from reranker import LMStudioReranker
 
 logger = structlog.get_logger()
 
+
+# =============================================
+# Types
+# =============================================
 
 def clean_bridge_host(host: str) -> str:
     """Extract hostname from potentially dirty host string or URL."""
@@ -56,6 +62,10 @@ class RetrievalConfig:
     embed_dim: Optional[int] = None
 
 
+# =============================================
+# Main Class
+# =============================================
+
 class LMStudioBridge:
     def __init__(
         self,
@@ -74,32 +84,35 @@ class LMStudioBridge:
         self.reranker = LMStudioReranker(base_url=self.base_url, model_id=self.rerank_model)
 
     async def resolve_model_id(self, model_id: str) -> str:
+        """Resolve model_id string to actual model ID returned by LM Studio."""
         if not model_id:
             return model_id
-        models = await self.list_models()
-        normalized_target = self.normalize_model_token(self.extract_model_key(model_id))
-        best_match = None
-        for model in models:
-            candidates = {
-                model.get("id"),
-                model.get("key"),
-                model.get("model_key"),
-                model.get("display_name"),
-                model.get("name"),
-            }
-            for candidate in candidates:
-                if not candidate:
-                    continue
-                normalized = self.normalize_model_token(candidate)
-                if not normalized:
-                    continue
-                if normalized == normalized_target:
-                    return str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
-                if normalized_target in normalized or normalized in normalized_target:
-                    best_match = str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
-        return best_match or self.extract_model_key(model_id)
+        try:
+            models = await self.list_models()
+            normalized_target = self.normalize_model_token(self.extract_model_key(model_id))
+            best_match = None
+            for model in models:
+                candidates = {
+                    model.get("id"), model.get("key"), model.get("model_key"),
+                    model.get("display_name"), model.get("name"),
+                }
+                for candidate in candidates:
+                    if not candidate:
+                        continue
+                    normalized = self.normalize_model_token(candidate)
+                    if not normalized:
+                        continue
+                    if normalized == normalized_target:
+                        return str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
+                    if normalized_target in normalized or normalized in normalized_target:
+                        best_match = str(model.get("id") or model.get("key") or model.get("model_key") or candidate)
+            return best_match or self.extract_model_key(model_id)
+        except Exception as e:
+            logger.exception("resolve_model_id_failed", model=model_id, error=str(e))
+            return model_id
 
     async def list_models(self) -> List[Dict[str, Any]]:
+        """List all models available on LM Studio server."""
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(f"{self.base_url}/api/v1/models")
             response.raise_for_status()
@@ -109,6 +122,7 @@ class LMStudioBridge:
             return payload
 
     async def get_loaded_models(self) -> List[Dict[str, Any]]:
+        """Get models that are currently loaded."""
         models = await self.list_models()
         loaded = []
         for model in models:
@@ -123,28 +137,22 @@ class LMStudioBridge:
         return loaded
 
     async def is_model_loaded(self, model_id: str) -> bool:
+        """Check if a model is loaded."""
         target = self.normalize_model_token(self.extract_model_key(model_id))
         for model in await self.get_loaded_models():
             candidates = {
-                model.get("id"),
-                model.get("key"),
-                model.get("model_key"),
-                model.get("display_name"),
-                model.get("identifier"),
-                model.get("model"),
-                model.get("name"),
-                model.get("path"),
+                model.get("id"), model.get("key"), model.get("model_key"),
+                model.get("display_name"), model.get("identifier"),
+                model.get("model"), model.get("name"), model.get("path"),
             }
             normalized = {self.normalize_model_token(value) for value in candidates if value}
-            if target in normalized:
-                return True
-            if any(target and item and (target in item or item in target) for item in normalized):
+            if target in normalized or any(target and item and (target in item or item in target) for item in normalized):
                 return True
         return False
 
     @staticmethod
     def extract_model_key(value: Optional[str]) -> str:
-        """Extract the core model key from various string formats (e.g. from environment or CLI)."""
+        """Extract the core model key from string formats."""
         text = str(value or "").strip()
         match = re.search(r"model_key='([^']+)'", text)
         if match:
@@ -153,11 +161,11 @@ class LMStudioBridge:
 
     @staticmethod
     def normalize_model_token(value: Optional[str]) -> str:
-        """Create a search-friendly token from a model ID or path."""
+        """Normalize model identifier for comparison."""
         text = LMStudioBridge.extract_model_key(value).lower().replace("\\", "/")
-        text = text.rsplit("/", 1)[-1]  # Get filename/last part
-        text = text.rsplit(":", 1)[-1]   # Handle potential port/version suffix
-        text = re.sub(r"[^a-z0-9._-]+", "", text)
+        text = text.rsplit("/", 1)[-1]
+        text = text.rsplit(":", 1)[-1]
+        text = re.sub(r"[^a-z0-9._-]+", "/", text)
         return text
 
     @staticmethod
@@ -184,6 +192,7 @@ class LMStudioBridge:
         eval_batch_size: Optional[int] = None,
         flash_attention: Optional[bool] = None,
     ) -> Dict[str, Any]:
+        """Load a model into LM Studio."""
         resolved_model_id = await self.resolve_model_id(model_id)
         body: Dict[str, Any] = {"model": resolved_model_id}
         if context_length:
@@ -213,7 +222,6 @@ class LMStudioBridge:
         resolved_model_id = await self.resolve_model_id(model_id)
         async with httpx.AsyncClient(timeout=10) as client:
             try:
-                # Use standard LM Studio unload endpoint
                 response = await client.post(f"{self.base_url}/api/v1/models/unload", json={"model": resolved_model_id})
                 if response.status_code == 200:
                     logger.info("bridge_model_unloaded", model=resolved_model_id)
@@ -234,19 +242,15 @@ class LMStudioBridge:
         eval_batch_size: Optional[int] = None,
         flash_attention: Optional[bool] = None,
     ) -> bool:
+        """Ensure model is loaded, load it if necessary."""
         if not self.auto_load_models or not model_id:
             return False
         if await self.is_model_loaded(model_id):
             return False
 
         await self.load_model(
-            model_id,
-            context_length=context_length,
-            identifier=identifier,
-            gpu=gpu,
-            ttl=ttl,
-            eval_batch_size=eval_batch_size,
-            flash_attention=flash_attention,
+            model_id, context_length=context_length, identifier=identifier,
+            gpu=gpu, ttl=ttl, eval_batch_size=eval_batch_size, flash_attention=flash_attention
         )
         return True
 
@@ -257,6 +261,7 @@ class LMStudioBridge:
         instruction: Optional[str] = None,
         embed_dim: Optional[int] = None
     ) -> List[List[float]]:
+        """Embed texts using the specified model."""
         if model and model != self.embed_model:
             return await Embedder(base_url=self.base_url, model=model).embed(
                 texts, instruction=instruction, embed_dim=embed_dim
@@ -272,6 +277,7 @@ class LMStudioBridge:
         top_k: int,
         instruction: Optional[str] = None
     ) -> List[Dict[str, Any]]:
+        """Rerank chunks to optimize retrieval."""
         if not query or not chunks:
             return []
 
@@ -279,7 +285,7 @@ class LMStudioBridge:
         if reranked and any(item.get("score", 0) != 0 for item in reranked):
             return reranked
 
-        # Fallback to embeddings if reranker fails or returns zero scores
+        # Fallback to embeddings if reranker fails
         query_embedding = await self.embedder.embed_query(query)
         chunk_embeddings = await self.embedder.embed_chunks(chunks)
         if not query_embedding or not chunk_embeddings:
@@ -298,6 +304,7 @@ class LMStudioBridge:
         docs: Sequence[Any],
         config: Optional[RetrievalConfig] = None,
     ) -> Dict[str, Any]:
+        """Build retrieval context for RAG."""
         retrieval = config or RetrievalConfig()
         normalized_docs = await self._normalize_docs(docs)
         chunk_records = self._chunk_documents(normalized_docs, retrieval.chunking)
@@ -305,16 +312,13 @@ class LMStudioBridge:
         if not chunk_records:
             return {"chunks": [], "context_text": "", "sources": []}
 
-        # Use Qwen-specific reranking instruction if provided
         reranked = await self.rerank_chunks(
-            query, 
-            [record["chunk"] for record in chunk_records], 
-            retrieval.top_k,
+            query, [record["chunk"] for record in chunk_records], retrieval.top_k,
             instruction=retrieval.rerank_instruction
         )
         selected: List[Dict[str, Any]] = []
         for item in reranked:
-            match = next((record for record in chunk_records if record["chunk"] == item["chunk"]), None)
+            match = next((r for r in chunk_records if r["chunk"] == item["chunk"]), None)
             if not match:
                 continue
             selected.append({
@@ -362,6 +366,7 @@ class LMStudioBridge:
         default_chunk_size: int = 900,
         default_chunk_overlap: int = 150,
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Enrich chat body with model loading and context injection."""
         model_id = body.get("model")
         extra = body.get("extra_body", {})
         retrieval_cfg = extra.get("retrieval", {})
@@ -372,12 +377,9 @@ class LMStudioBridge:
         load_cfg = extra.get("load_model", {})
         if model_id and (self.auto_load_models or load_cfg):
             await self.ensure_model_loaded(
-                model_id,
-                context_length=load_cfg.get("context_length"),
-                identifier=load_cfg.get("identifier"),
-                gpu=load_cfg.get("gpu"),
-                ttl=load_cfg.get("ttl"),
-                eval_batch_size=load_cfg.get("eval_batch_size"),
+                model_id, context_length=load_cfg.get("context_length"),
+                identifier=load_cfg.get("identifier"), gpu=load_cfg.get("gpu"),
+                ttl=load_cfg.get("ttl"), eval_batch_size=load_cfg.get("eval_batch_size"),
                 flash_attention=load_cfg.get("flash_attention"),
             )
 
@@ -538,7 +540,7 @@ class LMStudioBridge:
         sentences = []
         for char in text:
             sentence.append(char)
-            if char in ".!?":
+            if char in ".!?:" :
                 joined = "".join(sentence).strip()
                 if joined:
                     sentences.append(joined)
@@ -554,3 +556,241 @@ class LMStudioBridge:
                 continue
             return self.extract_text_from_content(message.get("content"))
         return ""
+
+    def _serialize_content(self, content: Any) -> str:
+        """Serialize content for sending to LM Studio."""
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            return json.dumps(content)
+        return str(content)
+
+    async def openai_chat_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        temperature: Optional[float] = 0.6,
+        top_p: Optional[float] = 0.95,
+        max_tokens: Optional[int] = 4096,
+    ) -> Dict[str, Any]:
+        """Make an OpenAI-compatible chat completion request."""
+        model_id = await self.resolve_model_id(model)
+        enriched = await self.enrich_chat_body({"model": model_id, "messages": messages}, top_k=4)
+        body, retrieval = enriched
+        requests: List[Dict[str, Any]] = []
+
+        for idx, message in enumerate(body["messages"]):
+            content = self._serialize_content(message.get("content", ""))
+            req = {"role": message.get("role", "user"), "content": content}
+
+            tool_calls_to_apply = None
+            msg = message.get("tool_calls")
+            if msg is not None and isinstance(msg, list) and msg and isinstance(msg[0], dict):
+                tool_calls_to_apply = {t.get("function", {}).get("name", "") for t in msg}
+            func_call = message.get("function_call")
+            if func_call is not None and isinstance(func_call, dict):
+                tool_calls_to_apply = {func_call.get("name", "")}
+
+            req["tool_choice"] = tool_calls_to_apply if tool_calls_to_apply else "auto"
+
+            if "role" in message and message.get("role") == "tool":
+                tool_call_id = None
+                for t in body["messages"]:
+                    if t.get("content") == content:
+                        for tc in t.get("tool_calls", []):
+                            if tc and isinstance(tc, dict):
+                                for ft in tc.get("function", []):
+                                    if isinstance(ft, dict) and ft.get("name") == t.get("tool_call_id"):
+                                        tool_call_id = ft["name"]
+                                        break
+                                    if isinstance(ft, str) and ft == t.get("tool_call_id"):
+                                        tool_call_id = ft
+                                        break
+                req["tool_call_id"] = tool_call_id
+                body["messages"][idx] = req
+                requests.append(req)
+            else:
+                body["messages"][idx] = req
+                requests.append(req)
+
+        body["messages"] = body["messages"][: max(1, len(body["messages"]) - len(requests))]
+
+        extra = {"temperature": temperature, "top_p": top_p, "max_tokens": max_tokens}
+        for param in extra:
+            if getattr(body, param, None) is not None:
+                extra[param] = body[param]
+        extra["stream"] = False
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{self.base_url}/v1/chat/completions",
+                json={"model": model_id, "messages": body["messages"], **extra}
+            )
+            if response.status_code >= 400:
+                detail = response.text[:512]
+                raise RuntimeError(f"LM Studio chat completion failed: {detail}")
+            data = response.json()
+            return data
+
+    async def openai_chat_completion_stream(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        temperature: Optional[float] = 0.6,
+        top_p: Optional[float] = 0.95,
+        max_tokens: Optional[int] = 4096,
+    ) -> Generator[Dict[str, Dict[str, Any]]]:
+        """Generate streaming responses using SSE."""
+        async for chunk in await self._stream_chat_completion(
+            model, messages, temperature, top_p, max_tokens
+        ):
+            yield chunk
+
+    async def _stream_chat_completion(
+        self,
+        model: str,
+        messages: List[Dict[str, Any]],
+        temperature: Optional[float] = 0.6,
+        top_p: Optional[float] = 0.95,
+        max_tokens: Optional[int] = 4096,
+    ) -> Generator[Dict[str, Dict[str, Any]]]:
+        """Internal async generator for SSE streaming responses."""
+        model_id = await self.resolve_model_id(model)
+        enriched = await self.enrich_chat_body({"model": model_id, "messages": messages}, top_k=4)
+        body, retrieval = enriched
+        requests: List[Dict[str, Any]] = []
+
+        for idx, message in enumerate(body["messages"]):
+            content = self._serialize_content(message.get("content", ""))
+            req = {"role": message.get("role", "user"), "content": content}
+
+            tool_calls_to_apply = None
+            msg = message.get("tool_calls")
+            if msg is not None and isinstance(msg, list) and msg and isinstance(msg[0], dict):
+                tool_calls_to_apply = {t.get("function", {}).get("name", "") for t in msg}
+            func_call = message.get("function_call")
+            if func_call is not None and isinstance(func_call, dict):
+                tool_calls_to_apply = {func_call.get("name", "")}
+
+            req["tool_choice"] = tool_calls_to_apply if tool_calls_to_apply else "auto"
+
+            if "role" in message and message.get("role") == "tool":
+                tool_call_id = None
+                for t in body["messages"]:
+                    if t.get("content") == content:
+                        for tc in t.get("tool_calls", []):
+                            if tc and isinstance(tc, dict):
+                                for ft in tc.get("function", []):
+                                    if isinstance(ft, dict) and ft.get("name") == t.get("tool_call_id"):
+                                        tool_call_id = ft["name"]
+                                        break
+                                    if isinstance(ft, str) and ft == t.get("tool_call_id"):
+                                        tool_call_id = ft
+                                        break
+                req["tool_call_id"] = tool_call_id
+                body["messages"][idx] = req
+                requests.append(req)
+            else:
+                body["messages"][idx] = req
+                requests.append(req)
+
+        body["messages"] = body["messages"][: max(1, len(body["messages"]) - len(requests))]
+
+        extra = {"temperature": temperature, "top_p": top_p, "max_tokens": max_tokens}
+        for param in extra:
+            if getattr(body, param, None) is not None:
+                extra[param] = body[param]
+        extra["stream"] = True
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            async for line in client.stream(
+                f"{self.base_url}/v1/chat/completions",
+                json={"model": model_id, "messages": body["messages"], **extra}
+            ): 
+                try: 
+                    line_data = line.decode() 
+                    break 
+                except Exception as error: 
+                    logger.error("stream_line_decode_error", error=str(error)); 
+                 
+                if line_data.startswith("data:") or line_data == ":" \
+                    or not line_data.strip(): 
+                    continue 
+                 
+                event_data = line_data[6:].strip() 
+                if not event_data: 
+                    continue 
+                 
+                try: 
+                    data = json.loads(event_data) 
+                except json.JSONDecodeError as json_err: 
+                    logger.warning("stream_event_parse_failed", error=(str(json_err))) 
+                    continue 
+                 
+                try: 
+                    content = json.dumps(data) 
+                except Exception as encode_err: 
+                    logger.warning("stream_event_encode_failed", error=(str(encode_err))) 
+                    return 
+                 
+                try: 
+                    yield {"data": content} 
+                except Exception as yield_err: 
+                    logger.warning("stream_yield_failed", error=(str(yield_err))); 
+                 
+                if not data.get("has_content") or not data.get("choices") \
+                    or data["choices"] and not data["choices"][0].get("content"): 
+                    break 
+                 
+                if data.get("choices") and len(data["choices"]) > 0: 
+                    content = data["choices"][0].get("content") or "" 
+                    content = json.dumps(content).replace("\\n", "\\n") 
+                    yield {"data": f"content: {content}"} 
+                 
+                if data.get("choices") and len(data["choices"]) > 0: 
+                    tool_calls = data["choices"][0].get("tool_calls") 
+                    if tool_calls and isinstance(tool_calls, list) and len(tool_calls) > 0: 
+                        tool_call_str = json.dumps(tool_calls).replace("\\n", "\\n") 
+                        yield {"data": f"tool_calls: {tool_call_str}"} 
+                 
+                if data.get("choices") and len(data["choices"]) > 0: 
+                    finish_reason = data["choices"][0].get("finish_reason") 
+                    if finish_reason: 
+                        yield {"data": f"finish_reason: {finish_reason}"} 
+                 
+                if data.get("choices") and len(data["choices"]) > 0: 
+                    completion_data = data["choices"][0] 
+                    if "message" in completion_data: 
+                        msg = completion_data["message"] 
+                        tools = msg.get("tools", {}) 
+                        if tools and isinstance(tools, list) and len(tools) > 0: 
+                            tools_str = json.dumps(tools).replace("\\n", "\\n") 
+                            yield {"data": f"tools: {tools_str}"} 
+                        
+                    role = msg.get("role") 
+                    if role and msg not in body["messages"]: 
+                        body["messages"].insert(0, dict(msg)) 
+                        requests.append(dict(msg)) 
+                    
+                    role = msg.get("role") 
+                    if role and body["messages"] and body["messages"][0].get("role") != msg.get("role"): 
+                        msg_copy = dict(msg) 
+                        msg_copy["role"] = msg_get(
+                                role)
+                        if "tool_calls" in msg_copy:
+                            for tc in msg_copy["tool_calls"]:
+                                tc.copy()
+                            msg_copy["tool_choice"] = tool_calls_to_apply if tool_calls_to_apply else "auto"
+                        if "function_call" in msg_copy:
+                            for fc in msg_copy["function_call"]:
+                                fc.copy()
+                            msg_copy["tool_choice"] = tool_calls_to_apply if tool_calls_to_apply else "auto"
+                        msg_copy["role"] = msg_get(
+                                role) if msg_copy.get("role") != "assistant" else "assistant"
+                        if "content" in msg_copy:
+                            msg_copy["content"] = self.extract_text_from_content(msg_copy.get("content"))
+                        
+                        body["messages"][0] = msg_copy
+                        requests[0] = msg_copy
