@@ -1,4 +1,4 @@
-# Proxy API - Qwen3 Retrieval System
+# Local Retrieval System Proxy 
 
 Production-ready proxy for LMStudio with OpenAI-compatible API, two-stage retrieval, agent orchestration, and ACE context enhancement.
 
